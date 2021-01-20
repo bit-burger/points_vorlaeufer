@@ -79,6 +79,7 @@ class CustomNeumorphicAppBar extends StatefulWidget implements PreferredSizeWidg
   final TextStyle textStyle;
 
   final double padding;
+  final Widget customBackWidget;
 
   CustomNeumorphicAppBar({
     Key key,
@@ -95,6 +96,7 @@ class CustomNeumorphicAppBar extends StatefulWidget implements PreferredSizeWidg
     this.titleSpacing = NavigationToolbar.kMiddleSpacing,
     this.actionSpacing = defaultSpacing,
     this.padding = 16,
+    this.customBackWidget
   })  : preferredSize = Size.fromHeight(toolbarHeight),
         super(key: key);
 
@@ -146,7 +148,7 @@ class CustomNeumorphicAppBarState extends State<CustomNeumorphicAppBar> {
         );
       } else {
         if (canPop)
-          leading = NeumorphicButton(
+          leading = widget.customBackWidget ?? NeumorphicButton(
             style: NeumorphicStyle(
               boxShape: NeumorphicBoxShape.circle(),
             ),
@@ -291,6 +293,7 @@ class NeumorphicIconButton extends StatefulWidget {
 class _NeumorphicIconButtonState extends State<NeumorphicIconButton> {
   NeumorphicStyle initialStyle;
 
+
   double depth;
   bool pressed = false; //overwrite widget.pressed when click for animation
   bool on;
@@ -320,13 +323,19 @@ class _NeumorphicIconButtonState extends State<NeumorphicIconButton> {
     updateInitialStyle();
   }
 
+
   @override
   void didUpdateWidget(Widget oldWidget) {
     print("OKOK");
     if(widget.disabled!=this.disabled) {
       this.disabled = widget.disabled;
       updateInitialStyle();
+    } else {
+      setState(() {
+
+      });
     }
+    updateInitialStyle();
     super.didUpdateWidget(oldWidget);
   }
 

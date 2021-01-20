@@ -1,16 +1,20 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
-import 'package:web_socket_channel/io.dart';
-import 'package:flutter_neumorphic/flutter_neumorphic.dart';
-import 'package:points/custom_neumorphic_sliders.dart';
 import 'dart:async';
-import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart';
-import 'package:dio/dio.dart';
-// import 'package:flutter_icons/flutter_icons.dart';
-import 'constants.dart';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_neumorphic/flutter_neumorphic.dart';
 import 'package:ionicons/ionicons.dart';
+import 'package:adaptive_dialog/adaptive_dialog.dart';
+
+import 'package:web_socket_channel/io.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart';
+
+import 'settings.dart';
+import 'rows.dart';
+import 'constants.dart' as Constants;
+import 'package:points/custom_neumorphic_sliders.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,8 +36,11 @@ class MyApp extends StatelessWidget {
         "/login": (context) {
           return Login();
         },
-        "/settings": (context){
+        "/settings": (context) {
           return Settings();
+        },
+        "/discover": (context) {
+          return DiscoverFriends();
         }
       },
       initialRoute: "/login",
@@ -71,18 +78,41 @@ class _LoginState extends State<Login> {
     super.dispose();
   }
 
+  void login() {
+    Dio()
+        .get("http://192.168.178.26:8080/$firstString/$secondString")
+        .then((value) async {
+      print("Value: " + value.toString());
+      await Login.preferences.setString(
+        Login.preferencesKey,
+        value.toString(),
+      );
+      Navigator.pushNamed(context, "/home", arguments: value.toString());
+    }).catchError((error) {
+      print(error.toString() + " ERROR");
+    });
+  }
+
+  bool _login = false;
+
   @override
   Widget build(BuildContext context) {
-    // if (Login.preferences.containsKey(Login.preferencesKey))
-    //   Navigator.of(context).pushNamed("/home");
+    () async {
+      print("halal");
+      Future.delayed(Duration(milliseconds: 1), () {
+        if (Login.preferences.containsKey(Login.preferencesKey) && !_login) {
+          _login = true;
+          Navigator.of(context).pushNamed("/home",
+              arguments: Login.preferences.getString(Login.preferencesKey));
+        }
+      });
+    }();
+
     return Scaffold(
       appBar: CustomNeumorphicAppBar(
         title: Text(
           "Login",
-          style: TextStyle(
-            fontFamily: "Courier",
-            fontSize: 30,
-          ),
+          style: Constants.titleTextStyle,
         ),
         buttonStyle: NeumorphicStyle(boxShape: NeumorphicBoxShape.circle()),
       ),
@@ -108,6 +138,7 @@ class _LoginState extends State<Login> {
                   child: Theme(
                     data: ThemeData(textSelectionColor: Colors.grey[400]),
                     child: TextField(
+                      enableSuggestions: false,
                       focusNode: firstNode,
                       keyboardType: TextInputType.name,
                       autofillHints: [
@@ -116,7 +147,9 @@ class _LoginState extends State<Login> {
                       ],
                       cursorColor: Colors.grey[700],
                       cursorWidth: 1.75,
+                      maxLength: 7,
                       decoration: InputDecoration(
+                        counterText: "",
                         hintText: "username",
                         hintStyle: TextStyle(color: Colors.grey[400]),
                         enabledBorder: UnderlineInputBorder(
@@ -150,6 +183,7 @@ class _LoginState extends State<Login> {
                   child: Theme(
                     data: ThemeData(textSelectionColor: Colors.grey[400]),
                     child: TextField(
+                      enableSuggestions: false,
                       focusNode: secondNode,
                       keyboardType: TextInputType.name,
                       autofillHints: [
@@ -176,21 +210,8 @@ class _LoginState extends State<Login> {
                         secondString = string;
                       },
                       onSubmitted: (string) async {
-                        print("wallah");
-                        Dio()
-                            .get(
-                                "http://192.168.178.26:8080/$firstString/$secondString")
-                            .then((value) async {
-                          print("Value: " + value.toString());
-                          await Login.preferences.setString(
-                            Login.preferencesKey,
-                            value.toString(),
-                          );
-                          Navigator.pushNamed(context, "/home",
-                              arguments: value.toString());
-                        }).catchError((error) {
-                          print(error.toString() + " ERROR");
-                        });
+                        print("submit");
+                        login();
                       },
                     ),
                   ),
@@ -206,18 +227,22 @@ class _LoginState extends State<Login> {
 
 class MyHomePage extends StatefulWidget {
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  MyHomePageState createState() => MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
+class MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   IOWebSocketChannel channel;
+
+  Completer completer;
 
   Map<String, dynamic> data = {
     "name": "",
     "logo": "",
     "status": "new to points",
     "color": "white",
-    "friends": []
+    "friends": [],
+    "requests": [],
+    "pending": [],
   };
 
   @override
@@ -237,14 +262,18 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void connect() {
     channel?.sink?.close();
     channel = IOWebSocketChannel.connect(
-      'ws://localhost:3000',
+      'ws://192.168.178.26:3000',
       headers: {"id": Login.preferences.getString(Login.preferencesKey)},
     );
     channel.stream.listen(
       (data) {
-        setState(() {
-          this.data = jsonDecode(data);
-        });
+        final Map<String, dynamic> parsedData = jsonDecode(data);
+        if (!parsedData.containsKey("data"))
+          setState(() {
+            this.data = parsedData;
+          });
+        else
+          completer.complete(parsedData["data"]);
       },
     );
     print("reconnected");
@@ -266,9 +295,40 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       appBar: CustomNeumorphicAppBar(
         title: Text(
           data["name"] ?? "",
-          style: TextStyle(
-            fontFamily: "Courier",
-            fontSize: 30,
+          style: Constants.titleTextStyle,
+        ),
+        customBackWidget: NeumorphicButton(
+          onPressed: () {
+            print("wal");
+            Navigator.pushNamed(
+              context,
+              "/discover",
+              arguments: [
+                () {
+                  Completer completer = Completer<List<dynamic>>();
+                  this.completer = completer;
+                  print("aljsd");
+                  this.channel.sink.add(
+                        jsonEncode(
+                          {
+                            "type": "batch",
+                            "id": Login.preferences
+                                .getString(Login.preferencesKey),
+                          },
+                        ),
+                      );
+                  return completer.future;
+                }(),
+                this,
+              ],
+            );
+          },
+          style: NeumorphicStyle(
+            boxShape: NeumorphicBoxShape.circle(),
+          ),
+          child: Icon(
+            Ionicons.person_add_outline,
+            size: 28,
           ),
         ),
         actions: [
@@ -276,8 +336,11 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
             style: NeumorphicStyle(
               boxShape: NeumorphicBoxShape.circle(),
             ),
-            onPressed: (){
-              Navigator.of(context).pushNamed("/settings");
+            onPressed: () {
+              Navigator.of(context).pushNamed(
+                "/settings",
+                arguments: this,
+              );
             },
             child: Icon(
               Ionicons.settings_outline,
@@ -286,185 +349,283 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         ],
         buttonStyle: NeumorphicStyle(boxShape: NeumorphicBoxShape.circle()),
       ),
-      body: Container(
-        child: Stack(
-          children: [
-            ListView.builder(
-              itemCount: (data["friends"] as List).length,
-              itemBuilder: (context, i) {
-                final friend =
-                    (data["friends"] as List)[i] as Map<String, dynamic>;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20)
-                      .copyWith(left: 20, right: 20),
-                  child: Neumorphic(
-                    style: NeumorphicStyle(
-                      boxShape: NeumorphicBoxShape.roundRect(
-                          BorderRadius.circular(27.5)),
-                      color: Constants.colorCodes[friend["color"]],
+      body: (data["friends"] + data["requests"] + data["pending"]).length == 0
+          ? Column(
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Text(
+                      "No friends :(",
+                      style: TextStyle(
+                        fontFamily: "Courier",
+                        fontSize: 30,
+                      ),
                     ),
-                    child: SizedBox(
-                      height: 55,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Padding(
-                            padding: EdgeInsets.fromLTRB(15, 0, 10, 4),
-                            child: Icon(
-                              Constants.getIconData(friend["logo"]),
-                              size: 35,
-                            ),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.fromLTRB(0, 5, 0, 0),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: SizedBox(),
+                ),
+              ],
+            )
+          : Container(
+              child: Stack(
+                children: [
+                  ListView.builder(
+                    padding: EdgeInsets.only(
+                      top: 30,
+                    ),
+                    itemCount: () {
+                      if (!data.containsKey("friends")) return 0;
+                      var friends = (data["friends"] as List).length;
+                      final requests = (data["requests"] as List).length + 1;
+                      final pending = (data["pending"] as List).length + 1;
+                      if (requests > 1) friends += requests;
+                      if (pending > 1) friends += pending;
+                      return friends;
+                    }(),
+                    itemBuilder: (context, i) {
+                      final List<dynamic> array = data["friends"] +
+                          (data["requests"].isEmpty
+                              ? []
+                              : (<dynamic>[true] + data["requests"])) +
+                          (data["pending"].isEmpty
+                              ? []
+                              : (<dynamic>[false] + data["pending"]));
+                      final _friend = array[i];
+                      if (_friend is bool)
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.only(
+                                left: 30, top: 0, bottom: 10),
                             child: Text(
-                              friend["name"],
-                              style: TextStyle(
-                                  fontFamily: "Courier", fontSize: 20),
+                              _friend == true ? "requests" : "pending",
+                              style: Constants.labelTextStyle,
                             ),
                           ),
-                          Expanded(
-                            child: Center(
-                              child: Padding(
-                                padding: EdgeInsets.fromLTRB(15, 5, 15, 0),
-                                child: Text(
-                                  friend["status"],
-                                  style: TextStyle(
-                                    fontFamily: "Courier",
-                                    fontSize: 15,
-                                    color: Colors.grey[600],
-                                  ),
-                                  maxLines: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: (){
+                        );
+                      final friend = _friend as Map<String, dynamic>;
+                      final bool notFriend = i > data["friends"].length;
+                      final bool notRequest =
+                          i > data["friends"].length + data["requests"].length;
+                      return FriendRow(
+                        iconData: friend["logo"],
+                        title: friend["name"],
+                        status: friend["status"],
+                        colorString: friend["color"],
+                        points: friend["points"],
+                        isButton: notFriend,
+                        onLongPress: (){
+
+                        },
+                        onPressed: () {
+                          if (!notFriend) {
+                            channel.sink.add(
+                              jsonEncode({
+                                "type": "give_plus",
+                                "id": ModalRoute.of(context).settings.arguments,
+                                "friend": friend["id"],
+                              }),
+                            );
+                          } else if (!notRequest) {
+                            showModalActionSheet(
+                              cancelLabel: "Do nothing",
+                              actions: [
+                                SheetAction(label: "Accept", key: true),
+                                SheetAction(label: "Reject", key: false),
+                              ],
+                              context: context,
+                            ).then((value) {
+                              if (value) {
+                                channel.sink.add(
+                                  jsonEncode({
+                                    "type": "accept",
+                                    "id": ModalRoute.of(context)
+                                        .settings
+                                        .arguments,
+                                    "friend": friend["id"],
+                                  }),
+                                );
+                              } else {
+                                channel.sink.add(
+                                  jsonEncode({
+                                    "type": "reject",
+                                    "id": ModalRoute.of(context)
+                                        .settings
+                                        .arguments,
+                                    "friend": friend["id"],
+                                  }),
+                                );
+                              }
+                            });
+                          } else {
+                            showModalActionSheet(
+                              cancelLabel: "Do nothing",
+                              actions: [
+                                SheetAction(label: "Stop request", key: false),
+                              ],
+                              context: context,
+                            ).then((value) {
                               channel.sink.add(
                                 jsonEncode({
-                                  "type":"give_plus",
-                                  "id":ModalRoute.of(context).settings.arguments,
-                                  "friend":friend["id"],
+                                  "type": "kill_pending",
+                                  "id": ModalRoute.of(context)
+                                      .settings
+                                      .arguments,
+                                  "friend": friend["id"],
                                 }),
                               );
-                            },
-                            child: Padding(
-                              padding: EdgeInsets.fromLTRB(0, 5, 20, 0),
-                              child: Text(
-                                friend["points"].toString(),
-                                style: TextStyle(
-                                  fontFamily: "Courier",
-                                  fontSize: 30,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
+                            });
+                          }
+                        },
+                      );
+                    },
+                  ),
+                  Container(
+                    height: 30,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          NeumorphicTheme.of(context).current.baseColor,
+                          NeumorphicTheme.of(context)
+                              .current
+                              .baseColor
+                              .withAlpha(0)
                         ],
                       ),
                     ),
                   ),
-                );
-              },
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Container(
+                      height: 30,
+                      alignment: Alignment.bottomCenter,
+                      decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          NeumorphicTheme.of(context).current.baseColor,
+                          NeumorphicTheme.of(context)
+                              .current
+                              .baseColor
+                              .withAlpha(0)
+                        ],
+                      )),
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.bottomRight,
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.5),
+                      child: Neumorphic(
+                        style: NeumorphicStyle(
+                          boxShape: NeumorphicBoxShape.circle(),
+                        ),
+                        child: Padding(
+                          padding:
+                              const EdgeInsets.all(17).copyWith(bottom: 10),
+                          child: Text(
+                            data["points"].toString(),
+                            style: TextStyle(
+                              fontFamily: "Courier",
+                              fontSize: 36,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            Container(
-              height: 30,
+    );
+  }
+}
+
+class DiscoverFriends extends StatefulWidget {
+  @override
+  _DiscoverFriendsState createState() => _DiscoverFriendsState();
+}
+
+class _DiscoverFriendsState extends State<DiscoverFriends> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: CustomNeumorphicAppBar(
+        title: Text(
+          "Discover",
+          style: Constants.titleTextStyle,
+        ),
+        buttonStyle: NeumorphicStyle(
+          boxShape: NeumorphicBoxShape.circle(),
+        ),
+      ),
+      body: Stack(
+        children: [
+          StreamBuilder<Object>(
+              stream: ((ModalRoute.of(context).settings.arguments
+                      as List<dynamic>)[0] as Future<List<dynamic>>)
+                  .asStream(),
+              initialData: [],
+              builder: (context, snapshot) {
+                final List<dynamic> data = snapshot.data;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: ListView.builder(
+                    padding: EdgeInsets.only(
+                      top: 30,
+                    ),
+                    itemCount: data.length,
+                    itemBuilder: (context, i) {
+                      final friend = data[i];
+                      return FriendRow(
+                        iconData: friend["logo"],
+                        title: friend["name"],
+                        status: friend["status"],
+                        colorString: friend["color"],
+                        points: friend["points"],
+                        isButton: true,
+                        onPressed: () {
+                          ((ModalRoute.of(context).settings.arguments
+                                  as List<dynamic>)[1] as MyHomePageState)
+                              .channel
+                              .sink
+                              .add(jsonEncode({
+                                "type": "friend",
+                                "id": Login.preferences
+                                    .getString(Login.preferencesKey),
+                                "friend": friend["id"],
+                              }));
+                        },
+                      );
+                    },
+                  ),
+                );
+              }),
+          Align(
+            alignment: Alignment.topCenter,
+            child: Container(
+              height: 20,
+              alignment: Alignment.topCenter,
               decoration: BoxDecoration(
                   gradient: LinearGradient(
-                begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
+                begin: Alignment.topCenter,
                 colors: [
                   NeumorphicTheme.of(context).current.baseColor,
                   NeumorphicTheme.of(context).current.baseColor.withAlpha(0)
                 ],
               )),
             ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                height: 30,
-                alignment: Alignment.bottomCenter,
-                decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    NeumorphicTheme.of(context).current.baseColor,
-                    NeumorphicTheme.of(context).current.baseColor.withAlpha(0)
-                  ],
-                )),
-              ),
-            ),
-            Align(
-              alignment: Alignment.bottomRight,
-              child: Padding(
-                padding: const EdgeInsets.all(32.5),
-                child: Neumorphic(
-                  style: NeumorphicStyle(
-                    boxShape: NeumorphicBoxShape.circle(),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(17).copyWith(bottom: 10),
-                    child: Text(
-                      data["points"].toString(),
-                      style: TextStyle(
-                        fontFamily: "Courier",
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class Settings extends StatefulWidget {
-  @override
-  SettingsState createState() => SettingsState();
-}
-
-class SettingsState extends State<Settings> {
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: CustomNeumorphicAppBar(
-        title: Text("Settings"),
-        buttonStyle: NeumorphicStyle(boxShape: NeumorphicBoxShape.circle()),
-      ),
-      body: Container(
-        padding: EdgeInsets.all(25).copyWith(top: 0),
-        child: Neumorphic(
-          style: NeumorphicStyle(
-            boxShape: NeumorphicBoxShape.roundRect(BorderRadius.circular(25)),
           ),
-          padding: EdgeInsets.all(20),
-          child: Column(
-            children: [
-              Padding(
-                child: Text(
-                  "Decibel range",
-                ),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }
