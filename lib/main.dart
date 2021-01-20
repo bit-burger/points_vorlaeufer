@@ -299,7 +299,6 @@ class MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         ),
         customBackWidget: NeumorphicButton(
           onPressed: () {
-            print("wal");
             Navigator.pushNamed(
               context,
               "/discover",
@@ -307,7 +306,6 @@ class MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                 () {
                   Completer completer = Completer<List<dynamic>>();
                   this.completer = completer;
-                  print("aljsd");
                   this.channel.sink.add(
                         jsonEncode(
                           {
@@ -418,8 +416,35 @@ class MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                         colorString: friend["color"],
                         points: friend["points"],
                         isButton: notFriend,
-                        onLongPress: (){
+                        onLongPress: notFriend ? null : (){
+                          showModalActionSheet(
+                            cancelLabel: "Do nothing",
+                            actions: [
+                              SheetAction(label: "Unfriend", key: true),
+                              SheetAction(label: "Block", key: false),
+                            ],
+                            context: context,
+                          ).then((value) {
+                            if(value==null) return;
+                            if(value==true) {
+                              channel.sink.add(
+                                jsonEncode({
+                                  "type": "unfriend",
+                                  "id": ModalRoute.of(context).settings.arguments,
+                                  "friend": friend["id"],
+                                }),
+                              );
+                            } else if(value==false) {
+                              channel.sink.add(
+                                jsonEncode({
+                                  "type": "unfriend_block",
+                                  "id": ModalRoute.of(context).settings.arguments,
+                                  "friend": friend["id"],
+                                }),
+                              );
+                            }
 
+                          });
                         },
                         onPressed: () {
                           if (!notFriend) {
@@ -434,12 +459,13 @@ class MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                             showModalActionSheet(
                               cancelLabel: "Do nothing",
                               actions: [
-                                SheetAction(label: "Accept", key: true),
-                                SheetAction(label: "Reject", key: false),
+                                SheetAction(label: "Accept", key: 0),
+                                SheetAction(label: "Reject", key: 1),
+                                SheetAction(label: "Block", key: 2),
                               ],
                               context: context,
                             ).then((value) {
-                              if (value) {
+                              if (value==0) {
                                 channel.sink.add(
                                   jsonEncode({
                                     "type": "accept",
@@ -449,10 +475,20 @@ class MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                                     "friend": friend["id"],
                                   }),
                                 );
-                              } else {
+                              } else if(value==1){
                                 channel.sink.add(
                                   jsonEncode({
                                     "type": "reject",
+                                    "id": ModalRoute.of(context)
+                                        .settings
+                                        .arguments,
+                                    "friend": friend["id"],
+                                  }),
+                                );
+                              } else if(value==2) {
+                                channel.sink.add(
+                                  jsonEncode({
+                                    "type": "reject_block",
                                     "id": ModalRoute.of(context)
                                         .settings
                                         .arguments,
@@ -465,10 +501,11 @@ class MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                             showModalActionSheet(
                               cancelLabel: "Do nothing",
                               actions: [
-                                SheetAction(label: "Stop request", key: false),
+                                SheetAction(label: "Stop request", key: true),
                               ],
                               context: context,
                             ).then((value) {
+                              if(value==null) return;
                               channel.sink.add(
                                 jsonEncode({
                                   "type": "kill_pending",
