@@ -425,7 +425,6 @@ class MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                             ],
                             context: context,
                           ).then((value) {
-                            if(value==null) return;
                             if(value==true) {
                               channel.sink.add(
                                 jsonEncode({
