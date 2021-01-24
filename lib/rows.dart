@@ -67,16 +67,20 @@ class FriendRow extends StatelessWidget {
               ),
             ),
           ),
-          GestureDetector(
-            onTap: isButton ? null : onPressed,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(0, 5, 20, 0),
-              child: Text(
-                points.toString(),
-                style: TextStyle(
-                  fontFamily: "Courier",
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
+          AbsorbPointer(
+            absorbing: false,
+            child: GestureDetector(
+              behavior: HitTestBehavior.deferToChild,
+              onTap: isButton ? null : onPressed,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(0, 5, 20, 0),
+                child: Text(
+                  points.toString(),
+                  style: TextStyle(
+                    fontFamily: "Courier",
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),

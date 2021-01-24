@@ -249,6 +249,8 @@ class MyHomePageState extends State<MyHomePage>
 
   bool isReversingAnimation = false;
 
+  int bulk = 1;
+
   Map<String, dynamic> data = {
     "name": "",
     "logo": "",
@@ -314,9 +316,12 @@ class MyHomePageState extends State<MyHomePage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomNeumorphicAppBar(
-        title: Text(
-          data["name"] ?? "",
-          style: Constants.titleTextStyle,
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            data["name"] ?? "",
+            style: Constants.titleTextStyle,
+          ),
         ),
         customBackWidget: NeumorphicButton(
           onPressed: () {
@@ -481,6 +486,7 @@ class MyHomePageState extends State<MyHomePage>
                                   "id":
                                       ModalRoute.of(context).settings.arguments,
                                   "friend": friend["id"],
+                                  "how_much": bulk,
                                 }),
                               );
                             } else if (!notRequest) {
@@ -599,21 +605,68 @@ class MyHomePageState extends State<MyHomePage>
                                     child: OverflowBox(
                                       maxWidth: constraints.maxWidth,
                                       alignment: Alignment.topLeft,
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(8.0),
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(horizontal: 10),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                          children: [
+                                            Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10).copyWith(bottom: 15),
+                                              child: Text(
+                                                "gives",
+                                                style: Constants.labelTextStyle.copyWith(fontSize: 15),
+                                              ),
+                                            ),
+                                            Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10),
                                               child: Text(
                                                 data["gives"].toString(),
                                                 maxLines: 1,
                                                 style: TextStyle(
-                                                  fontFamily: "Courier",
+                                                    fontFamily: "Courier",
+                                                    fontSize: 25
                                                 ),
                                               ),
                                             ),
-                                          ),
-                                        ],
+                                            Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10).copyWith(bottom: 15),
+                                              child: Text(
+                                                "bulk",
+                                                style: Constants.labelTextStyle.copyWith(fontSize: 15),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: NeumorphicButton(
+                                                padding: const EdgeInsets.symmetric(horizontal: 15),
+                                                onPressed: (){
+                                                  setState(() {
+                                                    if(bulk*10<data["gives"]) {
+                                                      bulk*=10;
+                                                    } else {
+                                                      bulk = 1;
+                                                    }
+                                                  });
+                                                },
+                                                child: SizedBox(
+                                                  height: 37,
+                                                  child: Center(
+                                                    child: Text(
+                                                      bulk.toString(),
+                                                      maxLines: 1,
+                                                      style: TextStyle(
+                                                          fontFamily: "Courier",
+                                                          fontSize: 25
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                style: NeumorphicStyle(
+                                                  boxShape: NeumorphicBoxShape.roundRect(BorderRadius.circular(37/2))
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                     builder: (context, child) {
