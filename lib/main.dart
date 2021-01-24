@@ -587,25 +587,26 @@ class MyHomePageState extends State<MyHomePage>
                         )),
                       ),
                     ),
-                    LayoutBuilder(
-                      builder: (context, outerConstraints) {
-                        return Align(
-                          alignment: Alignment.bottomRight,
-                          child: Padding(
-                            padding: const EdgeInsets.all(17),
+                    Padding(
+                      padding: const EdgeInsets.only(right: Constants.gap),
+                      child: LayoutBuilder(
+                        builder: (context, outerConstraints) {
+                          return Align(
+                            alignment: Alignment.bottomRight,
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
                                 Expanded(
+                                  flex: 1,
                                   child: LayoutBuilder(
                                     builder: (context, constraints) {
                                       return AnimatedBuilder(
                                         animation: _controller,
                                         child: OverflowBox(
-                                          maxWidth: outerConstraints.maxWidth -
+                                          maxWidth: (outerConstraints.maxWidth -
                                               (outerConstraints.maxWidth -
                                                       constraints.maxWidth) *
-                                                  _controller.value,
+                                                  _controller.value),
                                           alignment: Alignment.bottomLeft,
                                           child: OverflowBox(
                                             maxWidth: constraints.maxWidth,
@@ -613,88 +614,6 @@ class MyHomePageState extends State<MyHomePage>
                                             child: Padding(
                                               padding: EdgeInsets.symmetric(
                                                   horizontal: 10),
-                                              child: Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceEvenly,
-                                                children: [
-                                                  Padding(
-                                                    padding: const EdgeInsets
-                                                                .symmetric(
-                                                            horizontal: 10)
-                                                        .copyWith(bottom: 15),
-                                                    child: Text(
-                                                      "gives",
-                                                      style: Constants
-                                                          .labelTextStyle
-                                                          .copyWith(
-                                                              fontSize: 15),
-                                                    ),
-                                                  ),
-                                                  Padding(
-                                                    padding: const EdgeInsets
-                                                            .symmetric(
-                                                        horizontal: 10),
-                                                    child: Text(
-                                                      data["gives"].toString(),
-                                                      maxLines: 1,
-                                                      style: TextStyle(
-                                                          fontFamily: "Courier",
-                                                          fontSize: 25),
-                                                    ),
-                                                  ),
-                                                  Padding(
-                                                    padding: const EdgeInsets
-                                                                .symmetric(
-                                                            horizontal: 10)
-                                                        .copyWith(bottom: 15),
-                                                    child: Text(
-                                                      "bulk",
-                                                      style: Constants
-                                                          .labelTextStyle
-                                                          .copyWith(
-                                                              fontSize: 15),
-                                                    ),
-                                                  ),
-                                                  Expanded(
-                                                    child: NeumorphicButton(
-                                                      padding: const EdgeInsets
-                                                              .symmetric(
-                                                          horizontal: 15),
-                                                      onPressed: () {
-                                                        setState(() {
-                                                          if (bulk * 10 <
-                                                              data["gives"]) {
-                                                            bulk *= 10;
-                                                          } else {
-                                                            bulk = 1;
-                                                          }
-                                                        });
-                                                      },
-                                                      child: SizedBox(
-                                                        height: 37,
-                                                        child: Center(
-                                                          child: Text(
-                                                            bulk.toString(),
-                                                            maxLines: 1,
-                                                            style: TextStyle(
-                                                                fontFamily:
-                                                                    "Courier",
-                                                                fontSize: 25),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      style: NeumorphicStyle(
-                                                          boxShape: NeumorphicBoxShape
-                                                              .roundRect(
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                          37 /
-                                                                              2))),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
                                             ),
                                           ),
                                         ),
@@ -703,74 +622,282 @@ class MyHomePageState extends State<MyHomePage>
                                               isReversingAnimation
                                                   ? pow(_controller.value, 2)
                                                   : pow(_controller.value, 2);
-                                          return OverflowBox(
-                                            maxWidth: outerConstraints.maxWidth-(outerConstraints.maxWidth-constraints.maxWidth)*_controller.value,
-                                            alignment: Alignment.bottomLeft,
-                                            child: Container(
-                                              alignment: Alignment.bottomRight,
-                                              child: SizedBox(
-                                                height: 55,
-                                                child: SizedBox(
-                                                  width: _controller.value*constraints.maxWidth,
-                                                  child: Neumorphic(
-                                                    style: NeumorphicStyle(
-                                                      boxShape: NeumorphicBoxShape
-                                                          .roundRect(
-                                                        BorderRadius.circular(
-                                                            27.5),
+                                          return Row(
+                                            children: [
+                                              Expanded(
+                                                child: OverflowBox(
+                                                  maxWidth: outerConstraints
+                                                          .maxWidth -
+                                                      (outerConstraints
+                                                                  .maxWidth -
+                                                              constraints
+                                                                  .maxWidth) *
+                                                          _controller.value,
+                                                  alignment:
+                                                      Alignment.bottomLeft,
+                                                  child: Container(
+                                                    alignment:
+                                                        Alignment.bottomRight,
+                                                    child: SizedBox(
+                                                      height: 55,
+                                                      width: _controller.value *
+                                                              (constraints
+                                                                      .maxWidth -
+                                                                  55) +
+                                                          55,
+                                                      child: Padding(
+                                                        padding:
+                                                            EdgeInsets.only(
+                                                                left: Constants
+                                                                    .gap),
+                                                        child: Neumorphic(
+                                                          style:
+                                                              NeumorphicStyle(
+                                                            boxShape:
+                                                                NeumorphicBoxShape
+                                                                    .roundRect(
+                                                              BorderRadius
+                                                                  .circular(
+                                                                27.5,
+                                                              ),
+                                                            ),
+                                                            depth: 4 *
+                                                                animationValue,
+                                                          ),
+                                                          child: Opacity(
+                                                            opacity:
+                                                                animationValue,
+                                                            child: child,
+                                                          ),
+                                                        ),
                                                       ),
-                                                      depth: 4 * animationValue,
-                                                    ),
-                                                    child: Opacity(
-                                                      opacity: animationValue,
-                                                      child: child,
                                                     ),
                                                   ),
                                                 ),
                                               ),
-                                            ),
+                                            ],
                                           );
                                         },
                                       );
                                     },
                                   ),
                                 ),
-                                SizedBox(
-                                  width: 17,
-                                ),
-                                Align(
-                                  alignment: Alignment.bottomRight,
-                                  child: SizedBox(
-                                    height: 55,
-                                    child: NeumorphicButton(
-                                      onPressed: () {
-                                        if (_controller.isAnimating) return;
-                                        if (_controller.isCompleted) {
-                                          _controller.reverse();
-                                          isReversingAnimation = true;
-                                        } else {
-                                          _controller.forward();
-                                          isReversingAnimation = false;
-                                        }
-                                      },
-                                      style: NeumorphicStyle(
-                                        boxShape: NeumorphicBoxShape.roundRect(
-                                            BorderRadius.circular(27.5)),
-                                      ),
-                                      padding: EdgeInsets.zero,
-                                      child: Center(
-                                        child: Padding(
-                                          padding: EdgeInsets.only(
-                                            left: 10.0,
-                                            right: 10.0,
-                                            top: 5,
+                                Expanded(
+                                  flex: 1,
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      return AnimatedBuilder(
+                                        animation: _controller,
+                                        child: OverflowBox(
+                                          maxWidth: (outerConstraints.maxWidth -
+                                              (outerConstraints.maxWidth -
+                                                  constraints.maxWidth) *
+                                                  _controller.value),
+                                          alignment: Alignment.bottomLeft,
+                                          child: OverflowBox(
+                                            maxWidth: constraints.maxWidth,
+                                            alignment: Alignment.topLeft,
+                                            child: Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                  horizontal: 10),
+                                            ),
                                           ),
-                                          child: Text(
-                                            data["points"].toString(),
-                                            style: TextStyle(
-                                              fontFamily: "Courier",
-                                              fontSize: 30,
-                                              fontWeight: FontWeight.bold,
+                                        ),
+                                        builder: (context, child) {
+                                          double animationValue =
+                                          isReversingAnimation
+                                              ? pow(_controller.value, 4)
+                                              : pow(_controller.value, 4);
+                                          return Row(
+                                            children: [
+                                              Expanded(
+                                                child: OverflowBox(
+                                                  maxWidth: outerConstraints
+                                                      .maxWidth -
+                                                      (outerConstraints
+                                                          .maxWidth -
+                                                          constraints
+                                                              .maxWidth) *
+                                                          _controller.value,
+                                                  alignment:
+                                                  Alignment.bottomLeft,
+                                                  child: Container(
+                                                    alignment:
+                                                    Alignment.bottomRight,
+                                                    child: SizedBox(
+                                                      height: 55,
+                                                      width: _controller.value *
+                                                          (constraints
+                                                              .maxWidth -
+                                                              55) +
+                                                          55,
+                                                      child: Padding(
+                                                        padding:
+                                                        EdgeInsets.only(
+                                                            left: Constants
+                                                                .gap),
+                                                        child: Neumorphic(
+                                                          style:
+                                                          NeumorphicStyle(
+                                                            boxShape:
+                                                            NeumorphicBoxShape
+                                                                .roundRect(
+                                                              BorderRadius
+                                                                  .circular(
+                                                                27.5,
+                                                              ),
+                                                            ),
+                                                            depth: 4 *
+                                                                animationValue,
+                                                          ),
+                                                          child: Opacity(
+                                                            opacity:
+                                                            animationValue,
+                                                            child: child,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                    },
+                                  ),
+                                ),
+                                Expanded(
+                                  flex: 1,
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      return AnimatedBuilder(
+                                        animation: _controller,
+                                        child: OverflowBox(
+                                          maxWidth: (outerConstraints.maxWidth -
+                                              (outerConstraints.maxWidth -
+                                                  constraints.maxWidth) *
+                                                  _controller.value),
+                                          alignment: Alignment.bottomLeft,
+                                          child: OverflowBox(
+                                            maxWidth: constraints.maxWidth,
+                                            alignment: Alignment.topLeft,
+                                            child: Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                  horizontal: 10),
+                                            ),
+                                          ),
+                                        ),
+                                        builder: (context, child) {
+                                          double animationValue =
+                                          isReversingAnimation
+                                              ? pow(_controller.value, 15)
+                                              : pow(_controller.value, 15);
+                                          return Row(
+                                            children: [
+                                              Expanded(
+                                                child: OverflowBox(
+                                                  maxWidth: outerConstraints
+                                                      .maxWidth -
+                                                      (outerConstraints
+                                                          .maxWidth -
+                                                          constraints
+                                                              .maxWidth) *
+                                                          _controller.value,
+                                                  alignment:
+                                                  Alignment.bottomLeft,
+                                                  child: Container(
+                                                    alignment:
+                                                    Alignment.bottomRight,
+                                                    child: SizedBox(
+                                                      height: 55,
+                                                      width: _controller.value *
+                                                          (constraints
+                                                              .maxWidth -
+                                                              55) +
+                                                          55,
+                                                      child: Padding(
+                                                        padding:
+                                                        EdgeInsets.only(
+                                                            left: Constants
+                                                                .gap),
+                                                        child: Neumorphic(
+                                                          style:
+                                                          NeumorphicStyle(
+                                                            boxShape:
+                                                            NeumorphicBoxShape
+                                                                .roundRect(
+                                                              BorderRadius
+                                                                  .circular(
+                                                                27.5,
+                                                              ),
+                                                            ),
+                                                            depth: 4 *
+                                                                animationValue,
+                                                          ),
+                                                          child: Opacity(
+                                                            opacity:
+                                                            animationValue,
+                                                            child: child,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                    },
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Padding(
+                                    padding:
+                                        EdgeInsets.only(left: Constants.gap),
+                                    child: Align(
+                                      alignment: Alignment.bottomRight,
+                                      child: SizedBox(
+                                        height: 55,
+                                        child: NeumorphicButton(
+                                          onPressed: () {
+                                            if (_controller.isAnimating) return;
+                                            if (_controller.isCompleted) {
+                                              _controller.reverse();
+                                              isReversingAnimation = true;
+                                            } else {
+                                              _controller.forward();
+                                              isReversingAnimation = false;
+                                            }
+                                          },
+                                          style: NeumorphicStyle(
+                                            boxShape:
+                                                NeumorphicBoxShape.roundRect(
+                                                    BorderRadius.circular(
+                                                        27.5)),
+                                          ),
+                                          padding: EdgeInsets.zero,
+                                          child: Center(
+                                            child: Padding(
+                                              padding: EdgeInsets.only(
+                                                left: 10.0,
+                                                right: 10.0,
+                                                top: 5,
+                                              ),
+                                              child: FittedBox(
+                                                fit: BoxFit.fitWidth,
+                                                child: Text(
+                                                  data["points"].toString(),
+                                                  style: TextStyle(
+                                                    fontFamily: "Courier",
+                                                    fontSize: 30,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -780,9 +907,9 @@ class MyHomePageState extends State<MyHomePage>
                                 ),
                               ],
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
