@@ -316,12 +316,9 @@ class MyHomePageState extends State<MyHomePage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomNeumorphicAppBar(
-        title: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            data["name"] ?? "",
-            style: Constants.titleTextStyle,
-          ),
+        title: Text(
+          data["name"] ?? "",
+          style: Constants.titleTextStyle,
         ),
         customBackWidget: NeumorphicButton(
           onPressed: () {
@@ -590,160 +587,202 @@ class MyHomePageState extends State<MyHomePage>
                         )),
                       ),
                     ),
-                    Align(
-                      alignment: Alignment.bottomRight,
-                      child: Padding(
-                        padding: const EdgeInsets.all(17),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Expanded(
-                              child: LayoutBuilder(
-                                builder: (context,constraints){
-                                  return AnimatedBuilder(
-                                    animation: _controller,
-                                    child: OverflowBox(
-                                      maxWidth: constraints.maxWidth,
-                                      alignment: Alignment.topLeft,
-                                      child: Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 10),
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                          children: [
-                                            Padding(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10).copyWith(bottom: 15),
-                                              child: Text(
-                                                "gives",
-                                                style: Constants.labelTextStyle.copyWith(fontSize: 15),
-                                              ),
-                                            ),
-                                            Padding(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10),
-                                              child: Text(
-                                                data["gives"].toString(),
-                                                maxLines: 1,
-                                                style: TextStyle(
-                                                    fontFamily: "Courier",
-                                                    fontSize: 25
-                                                ),
-                                              ),
-                                            ),
-                                            Padding(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10).copyWith(bottom: 15),
-                                              child: Text(
-                                                "bulk",
-                                                style: Constants.labelTextStyle.copyWith(fontSize: 15),
-                                              ),
-                                            ),
-                                            Expanded(
-                                              child: NeumorphicButton(
-                                                padding: const EdgeInsets.symmetric(horizontal: 15),
-                                                onPressed: (){
-                                                  setState(() {
-                                                    if(bulk*10<data["gives"]) {
-                                                      bulk*=10;
-                                                    } else {
-                                                      bulk = 1;
-                                                    }
-                                                  });
-                                                },
-                                                child: SizedBox(
-                                                  height: 37,
-                                                  child: Center(
+                    LayoutBuilder(
+                      builder: (context, outerConstraints) {
+                        return Align(
+                          alignment: Alignment.bottomRight,
+                          child: Padding(
+                            padding: const EdgeInsets.all(17),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Expanded(
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      return AnimatedBuilder(
+                                        animation: _controller,
+                                        child: OverflowBox(
+                                          maxWidth: outerConstraints.maxWidth -
+                                              (outerConstraints.maxWidth -
+                                                      constraints.maxWidth) *
+                                                  _controller.value,
+                                          alignment: Alignment.bottomLeft,
+                                          child: OverflowBox(
+                                            maxWidth: constraints.maxWidth,
+                                            alignment: Alignment.topLeft,
+                                            child: Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                  horizontal: 10),
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceEvenly,
+                                                children: [
+                                                  Padding(
+                                                    padding: const EdgeInsets
+                                                                .symmetric(
+                                                            horizontal: 10)
+                                                        .copyWith(bottom: 15),
                                                     child: Text(
-                                                      bulk.toString(),
+                                                      "gives",
+                                                      style: Constants
+                                                          .labelTextStyle
+                                                          .copyWith(
+                                                              fontSize: 15),
+                                                    ),
+                                                  ),
+                                                  Padding(
+                                                    padding: const EdgeInsets
+                                                            .symmetric(
+                                                        horizontal: 10),
+                                                    child: Text(
+                                                      data["gives"].toString(),
                                                       maxLines: 1,
                                                       style: TextStyle(
                                                           fontFamily: "Courier",
-                                                          fontSize: 25
-                                                      ),
+                                                          fontSize: 25),
                                                     ),
                                                   ),
-                                                ),
-                                                style: NeumorphicStyle(
-                                                  boxShape: NeumorphicBoxShape.roundRect(BorderRadius.circular(37/2))
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    builder: (context, child) {
-                                      double animationValue = isReversingAnimation ? pow(_controller.value, 4) : pow(_controller.value, 2);
-                                      return Container(
-                                        alignment: Alignment.bottomRight,
-                                        child: SizedBox(
-                                          height: 55,
-                                          child: FractionallySizedBox(
-                                            widthFactor: _controller.value,
-                                            child: Neumorphic(
-                                              style: NeumorphicStyle(
-                                                boxShape:
-                                                NeumorphicBoxShape.roundRect(
-                                                  BorderRadius.circular(27.5),
-                                                ),
-                                                depth: 4 * animationValue,
-                                              ),
-                                              child: Opacity(
-                                                opacity: animationValue,
-                                                child: child,
+                                                  Padding(
+                                                    padding: const EdgeInsets
+                                                                .symmetric(
+                                                            horizontal: 10)
+                                                        .copyWith(bottom: 15),
+                                                    child: Text(
+                                                      "bulk",
+                                                      style: Constants
+                                                          .labelTextStyle
+                                                          .copyWith(
+                                                              fontSize: 15),
+                                                    ),
+                                                  ),
+                                                  Expanded(
+                                                    child: NeumorphicButton(
+                                                      padding: const EdgeInsets
+                                                              .symmetric(
+                                                          horizontal: 15),
+                                                      onPressed: () {
+                                                        setState(() {
+                                                          if (bulk * 10 <
+                                                              data["gives"]) {
+                                                            bulk *= 10;
+                                                          } else {
+                                                            bulk = 1;
+                                                          }
+                                                        });
+                                                      },
+                                                      child: SizedBox(
+                                                        height: 37,
+                                                        child: Center(
+                                                          child: Text(
+                                                            bulk.toString(),
+                                                            maxLines: 1,
+                                                            style: TextStyle(
+                                                                fontFamily:
+                                                                    "Courier",
+                                                                fontSize: 25),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      style: NeumorphicStyle(
+                                                          boxShape: NeumorphicBoxShape
+                                                              .roundRect(
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          37 /
+                                                                              2))),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                           ),
                                         ),
+                                        builder: (context, child) {
+                                          double animationValue =
+                                              isReversingAnimation
+                                                  ? pow(_controller.value, 2)
+                                                  : pow(_controller.value, 2);
+                                          return OverflowBox(
+                                            maxWidth: outerConstraints.maxWidth-(outerConstraints.maxWidth-constraints.maxWidth)*_controller.value,
+                                            alignment: Alignment.bottomLeft,
+                                            child: Container(
+                                              alignment: Alignment.bottomRight,
+                                              child: SizedBox(
+                                                height: 55,
+                                                child: SizedBox(
+                                                  width: _controller.value*constraints.maxWidth,
+                                                  child: Neumorphic(
+                                                    style: NeumorphicStyle(
+                                                      boxShape: NeumorphicBoxShape
+                                                          .roundRect(
+                                                        BorderRadius.circular(
+                                                            27.5),
+                                                      ),
+                                                      depth: 4 * animationValue,
+                                                    ),
+                                                    child: Opacity(
+                                                      opacity: animationValue,
+                                                      child: child,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        },
                                       );
                                     },
-                                  );
-                                },
-                              ),
-                            ),
-                            SizedBox(
-                              width: 17,
-                            ),
-                            Align(
-                              alignment: Alignment.bottomRight,
-                              child: SizedBox(
-                                height: 55,
-                                child: NeumorphicButton(
-                                  onPressed: () {
-                                    if (_controller.isAnimating) return;
-                                    if (_controller.isCompleted) {
-                                      _controller.reverse();
-                                      isReversingAnimation = true;
-                                    } else {
-                                      _controller.forward();
-                                      isReversingAnimation = false;
-                                    }
-                                  },
-                                  style: NeumorphicStyle(
-                                    boxShape: NeumorphicBoxShape.roundRect(
-                                        BorderRadius.circular(27.5)),
                                   ),
-                                  padding: EdgeInsets.zero,
-                                  child: Center(
-                                    child: Padding(
-                                      padding: EdgeInsets.only(
-                                        left: 10.0,
-                                        right: 10.0,
-                                        top: 5,
+                                ),
+                                SizedBox(
+                                  width: 17,
+                                ),
+                                Align(
+                                  alignment: Alignment.bottomRight,
+                                  child: SizedBox(
+                                    height: 55,
+                                    child: NeumorphicButton(
+                                      onPressed: () {
+                                        if (_controller.isAnimating) return;
+                                        if (_controller.isCompleted) {
+                                          _controller.reverse();
+                                          isReversingAnimation = true;
+                                        } else {
+                                          _controller.forward();
+                                          isReversingAnimation = false;
+                                        }
+                                      },
+                                      style: NeumorphicStyle(
+                                        boxShape: NeumorphicBoxShape.roundRect(
+                                            BorderRadius.circular(27.5)),
                                       ),
-                                      child: Text(
-                                        data["points"].toString(),
-                                        style: TextStyle(
-                                          fontFamily: "Courier",
-                                          fontSize: 30,
-                                          fontWeight: FontWeight.bold,
+                                      padding: EdgeInsets.zero,
+                                      child: Center(
+                                        child: Padding(
+                                          padding: EdgeInsets.only(
+                                            left: 10.0,
+                                            right: 10.0,
+                                            top: 5,
+                                          ),
+                                          child: Text(
+                                            data["points"].toString(),
+                                            style: TextStyle(
+                                              fontFamily: "Courier",
+                                              fontSize: 30,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
