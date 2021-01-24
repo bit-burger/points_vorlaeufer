@@ -30,26 +30,30 @@ class FriendRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(15, 0, 10, 4),
+            padding: EdgeInsets.fromLTRB(15, 0, 0, 4),
             child: Icon(
               Constants.getIconData(iconData),
               size: 35,
             ),
           ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(0, 5, 0, 0),
-            child: Text(
-              title,
-              style: TextStyle(
-                fontFamily: "Courier",
-                fontSize: 20,
+          Expanded(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(10, 5, 10, 0),
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontFamily: "Courier",
+                    fontSize: 20,
+                  ),
+                ),
               ),
             ),
           ),
           Expanded(
             child: Center(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(15, 5, 15, 0),
+                padding: EdgeInsets.fromLTRB(0, 5, 10, 0),
                 child: Text(
                   status,
                   style: TextStyle(
@@ -57,6 +61,7 @@ class FriendRow extends StatelessWidget {
                     fontSize: 15,
                     color: Colors.grey[600],
                   ),
+                  textAlign: TextAlign.center,
                   maxLines: 2,
                 ),
               ),

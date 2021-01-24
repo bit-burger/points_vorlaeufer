@@ -92,9 +92,12 @@ class SettingsState extends State<Settings> {
     };
     return Scaffold(
       appBar: CustomNeumorphicAppBar(
-        title: Text(
-          "Settings",
-          style: Constants.titleTextStyle,
+        title: FittedBox(
+          fit: BoxFit.fitWidth,
+          child: Text(
+            "Settings",
+            style: Constants.titleTextStyle,
+          ),
         ),
         buttonStyle: NeumorphicStyle(boxShape: NeumorphicBoxShape.circle()),
         actions: [
@@ -186,10 +189,6 @@ class SettingsState extends State<Settings> {
                               controller: nameController,
                               enableSuggestions: false,
                               keyboardType: TextInputType.name,
-                              autofillHints: [
-                                AutofillHints.password,
-                                AutofillHints.newUsername
-                              ],
                               cursorColor: Colors.grey[700],
                               cursorWidth: 1.75,
                               decoration: InputDecoration(
@@ -207,6 +206,7 @@ class SettingsState extends State<Settings> {
                               ),
                               style: TextStyle(fontFamily: "Courier"),
                               maxLength: 10,
+                              autocorrect: false,
                               onSubmitted: (string) {
                                 change("name", string);
                               },
@@ -243,10 +243,6 @@ class SettingsState extends State<Settings> {
                               controller: statusController,
                               enableSuggestions: false,
                               keyboardType: TextInputType.name,
-                              autofillHints: [
-                                AutofillHints.password,
-                                AutofillHints.newUsername
-                              ],
                               cursorColor: Colors.grey[700],
                               cursorWidth: 1.75,
                               decoration: InputDecoration(
@@ -264,6 +260,7 @@ class SettingsState extends State<Settings> {
                               ),
                               style: TextStyle(fontFamily: "Courier"),
                               maxLength: 20,
+                              autocorrect: false,
                               onSubmitted: (string) {
                                 change("status", string);
                               },
@@ -376,9 +373,12 @@ class _IconSettingsState extends State<IconSettings> {
     }
     return Scaffold(
       appBar: CustomNeumorphicAppBar(
-        title: Text(
-          "Icons",
-          style: Constants.titleTextStyle,
+        title: FittedBox(
+          fit: BoxFit.fitWidth,
+          child: Text(
+            "Icons",
+            style: Constants.titleTextStyle,
+          ),
         ),
         buttonStyle: NeumorphicStyle(boxShape: NeumorphicBoxShape.circle()),
       ),

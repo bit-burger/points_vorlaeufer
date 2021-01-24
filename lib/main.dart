@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -110,9 +111,12 @@ class _LoginState extends State<Login> {
 
     return Scaffold(
       appBar: CustomNeumorphicAppBar(
-        title: Text(
-          "Login",
-          style: Constants.titleTextStyle,
+        title: FittedBox(
+          fit: BoxFit.fitWidth,
+          child: Text(
+            "Login",
+            style: Constants.titleTextStyle,
+          ),
         ),
         buttonStyle: NeumorphicStyle(boxShape: NeumorphicBoxShape.circle()),
       ),
@@ -139,7 +143,6 @@ class _LoginState extends State<Login> {
                     data: ThemeData(textSelectionColor: Colors.grey[400]),
                     child: TextField(
                       enableSuggestions: false,
-                      focusNode: firstNode,
                       keyboardType: TextInputType.name,
                       autofillHints: [
                         AutofillHints.username,
@@ -170,6 +173,8 @@ class _LoginState extends State<Login> {
                         secondNode.requestFocus();
                       },
                       style: TextStyle(fontFamily: "Courier"),
+                      textInputAction: TextInputAction.next,
+                      autocorrect: false,
                     ),
                   ),
                 ),
@@ -184,7 +189,7 @@ class _LoginState extends State<Login> {
                     data: ThemeData(textSelectionColor: Colors.grey[400]),
                     child: TextField(
                       enableSuggestions: false,
-                      focusNode: secondNode,
+                      textInputAction: TextInputAction.next,
                       keyboardType: TextInputType.name,
                       autofillHints: [
                         AutofillHints.password,
@@ -209,6 +214,8 @@ class _LoginState extends State<Login> {
                       onChanged: (string) {
                         secondString = string;
                       },
+                      autocorrect: false,
+                      obscureText: true,
                       onSubmitted: (string) async {
                         print("submit");
                         login();
@@ -230,10 +237,17 @@ class MyHomePage extends StatefulWidget {
   MyHomePageState createState() => MyHomePageState();
 }
 
-class MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
+class MyHomePageState extends State<MyHomePage>
+    with WidgetsBindingObserver, TickerProviderStateMixin {
+  bool schonGeladen = false;
+
+  AnimationController _controller;
+
   IOWebSocketChannel channel;
 
   Completer completer;
+
+  bool isReversingAnimation = false;
 
   Map<String, dynamic> data = {
     "name": "",
@@ -249,6 +263,10 @@ class MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void initState() {
     connect();
     WidgetsBinding.instance.addObserver(this);
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 750),
+      vsync: this,
+    );
     super.initState();
   }
 
@@ -256,6 +274,7 @@ class MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     channel.sink.close();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -281,7 +300,9 @@ class MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (!schonGeladen) {
+      schonGeladen = true;
+    } else if (state == AppLifecycleState.resumed) {
       connect();
       print("connected");
     } else {
@@ -347,240 +368,334 @@ class MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         ],
         buttonStyle: NeumorphicStyle(boxShape: NeumorphicBoxShape.circle()),
       ),
-      body: (data["friends"] + data["requests"] + data["pending"]).length == 0
-          ? Column(
-              children: [
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Text(
-                      "No friends :(",
-                      style: TextStyle(
-                        fontFamily: "Courier",
-                        fontSize: 30,
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: SizedBox(),
-                ),
-              ],
-            )
-          : Container(
-              child: Stack(
+      body: SafeArea(
+        child: (data["friends"] + data["requests"] + data["pending"]).length ==
+                0
+            ? Column(
                 children: [
-                  ListView.builder(
-                    padding: EdgeInsets.only(
-                      top: 30,
-                    ),
-                    itemCount: () {
-                      if (!data.containsKey("friends")) return 0;
-                      var friends = (data["friends"] as List).length;
-                      final requests = (data["requests"] as List).length + 1;
-                      final pending = (data["pending"] as List).length + 1;
-                      if (requests > 1) friends += requests;
-                      if (pending > 1) friends += pending;
-                      return friends;
-                    }(),
-                    itemBuilder: (context, i) {
-                      final List<dynamic> array = data["friends"] +
-                          (data["requests"].isEmpty
-                              ? []
-                              : (<dynamic>[true] + data["requests"])) +
-                          (data["pending"].isEmpty
-                              ? []
-                              : (<dynamic>[false] + data["pending"]));
-                      final _friend = array[i];
-                      if (_friend is bool)
-                        return Align(
-                          alignment: Alignment.topLeft,
-                          child: Padding(
-                            padding: const EdgeInsets.only(
-                                left: 30, top: 0, bottom: 10),
-                            child: Text(
-                              _friend == true ? "requests" : "pending",
-                              style: Constants.labelTextStyle,
-                            ),
-                          ),
-                        );
-                      final friend = _friend as Map<String, dynamic>;
-                      final bool notFriend = i > data["friends"].length;
-                      final bool notRequest =
-                          i > data["friends"].length + data["requests"].length;
-                      return FriendRow(
-                        iconData: friend["logo"],
-                        title: friend["name"],
-                        status: friend["status"],
-                        colorString: friend["color"],
-                        points: friend["points"],
-                        isButton: notFriend,
-                        onLongPress: notFriend ? null : (){
-                          showModalActionSheet(
-                            cancelLabel: "Do nothing",
-                            actions: [
-                              SheetAction(label: "Unfriend", key: true),
-                              SheetAction(label: "Block", key: false),
-                            ],
-                            context: context,
-                          ).then((value) {
-                            if(value==true) {
-                              channel.sink.add(
-                                jsonEncode({
-                                  "type": "unfriend",
-                                  "id": ModalRoute.of(context).settings.arguments,
-                                  "friend": friend["id"],
-                                }),
-                              );
-                            } else if(value==false) {
-                              channel.sink.add(
-                                jsonEncode({
-                                  "type": "unfriend_block",
-                                  "id": ModalRoute.of(context).settings.arguments,
-                                  "friend": friend["id"],
-                                }),
-                              );
-                            }
-
-                          });
-                        },
-                        onPressed: () {
-                          if (!notFriend) {
-                            channel.sink.add(
-                              jsonEncode({
-                                "type": "give_plus",
-                                "id": ModalRoute.of(context).settings.arguments,
-                                "friend": friend["id"],
-                              }),
-                            );
-                          } else if (!notRequest) {
-                            showModalActionSheet(
-                              cancelLabel: "Do nothing",
-                              actions: [
-                                SheetAction(label: "Accept", key: 0),
-                                SheetAction(label: "Reject", key: 1),
-                                SheetAction(label: "Block", key: 2),
-                              ],
-                              context: context,
-                            ).then((value) {
-                              if (value==0) {
-                                channel.sink.add(
-                                  jsonEncode({
-                                    "type": "accept",
-                                    "id": ModalRoute.of(context)
-                                        .settings
-                                        .arguments,
-                                    "friend": friend["id"],
-                                  }),
-                                );
-                              } else if(value==1){
-                                channel.sink.add(
-                                  jsonEncode({
-                                    "type": "reject",
-                                    "id": ModalRoute.of(context)
-                                        .settings
-                                        .arguments,
-                                    "friend": friend["id"],
-                                  }),
-                                );
-                              } else if(value==2) {
-                                channel.sink.add(
-                                  jsonEncode({
-                                    "type": "reject_block",
-                                    "id": ModalRoute.of(context)
-                                        .settings
-                                        .arguments,
-                                    "friend": friend["id"],
-                                  }),
-                                );
-                              }
-                            });
-                          } else {
-                            showModalActionSheet(
-                              cancelLabel: "Do nothing",
-                              actions: [
-                                SheetAction(label: "Stop request", key: true),
-                              ],
-                              context: context,
-                            ).then((value) {
-                              if(value==null) return;
-                              channel.sink.add(
-                                jsonEncode({
-                                  "type": "kill_pending",
-                                  "id": ModalRoute.of(context)
-                                      .settings
-                                      .arguments,
-                                  "friend": friend["id"],
-                                }),
-                              );
-                            });
-                          }
-                        },
-                      );
-                    },
-                  ),
-                  Container(
-                    height: 30,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          NeumorphicTheme.of(context).current.baseColor,
-                          NeumorphicTheme.of(context)
-                              .current
-                              .baseColor
-                              .withAlpha(0)
-                        ],
-                      ),
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Container(
-                      height: 30,
+                  Expanded(
+                    child: Align(
                       alignment: Alignment.bottomCenter,
-                      decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          NeumorphicTheme.of(context).current.baseColor,
-                          NeumorphicTheme.of(context)
-                              .current
-                              .baseColor
-                              .withAlpha(0)
-                        ],
-                      )),
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.bottomRight,
-                    child: Padding(
-                      padding: const EdgeInsets.all(32.5),
-                      child: Neumorphic(
-                        style: NeumorphicStyle(
-                          boxShape: NeumorphicBoxShape.circle(),
-                        ),
-                        child: Padding(
-                          padding:
-                              const EdgeInsets.all(17).copyWith(bottom: 10),
-                          child: Text(
-                            data["points"].toString(),
-                            style: TextStyle(
-                              fontFamily: "Courier",
-                              fontSize: 36,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                      child: Text(
+                        "No friends :(",
+                        style: TextStyle(
+                          fontFamily: "Courier",
+                          fontSize: 30,
                         ),
                       ),
                     ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: SizedBox(),
                   ),
                 ],
+              )
+            : Container(
+                child: Stack(
+                  children: [
+                    ListView.builder(
+                      padding: EdgeInsets.only(
+                        top: 30,
+                      ),
+                      itemCount: () {
+                        if (!data.containsKey("friends")) return 0;
+                        var friends = (data["friends"] as List).length;
+                        final requests = (data["requests"] as List).length + 1;
+                        final pending = (data["pending"] as List).length + 1;
+                        if (requests > 1) friends += requests;
+                        if (pending > 1) friends += pending;
+                        return friends;
+                      }(),
+                      itemBuilder: (context, i) {
+                        final List<dynamic> array = data["friends"] +
+                            (data["requests"].isEmpty
+                                ? []
+                                : (<dynamic>[true] + data["requests"])) +
+                            (data["pending"].isEmpty
+                                ? []
+                                : (<dynamic>[false] + data["pending"]));
+                        final _friend = array[i];
+                        if (_friend is bool)
+                          return Align(
+                            alignment: Alignment.topLeft,
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                  left: 30, top: 0, bottom: 10),
+                              child: Text(
+                                _friend == true ? "requests" : "pending",
+                                style: Constants.labelTextStyle,
+                              ),
+                            ),
+                          );
+                        final friend = _friend as Map<String, dynamic>;
+                        final bool notFriend = i > data["friends"].length;
+                        final bool notRequest = i >
+                            data["friends"].length + data["requests"].length;
+                        return FriendRow(
+                          iconData: friend["logo"],
+                          title: friend["name"],
+                          status: friend["status"],
+                          colorString: friend["color"],
+                          points: friend["points"],
+                          isButton: notFriend,
+                          onLongPress: notFriend
+                              ? null
+                              : () {
+                                  showModalActionSheet(
+                                    cancelLabel: "Do nothing",
+                                    actions: [
+                                      SheetAction(label: "Unfriend", key: true),
+                                      SheetAction(label: "Block", key: false),
+                                    ],
+                                    context: context,
+                                  ).then((value) {
+                                    if (value == true) {
+                                      channel.sink.add(
+                                        jsonEncode({
+                                          "type": "unfriend",
+                                          "id": ModalRoute.of(context)
+                                              .settings
+                                              .arguments,
+                                          "friend": friend["id"],
+                                        }),
+                                      );
+                                    } else if (value == false) {
+                                      channel.sink.add(
+                                        jsonEncode({
+                                          "type": "unfriend_block",
+                                          "id": ModalRoute.of(context)
+                                              .settings
+                                              .arguments,
+                                          "friend": friend["id"],
+                                        }),
+                                      );
+                                    }
+                                  });
+                                },
+                          onPressed: () {
+                            if (!notFriend) {
+                              channel.sink.add(
+                                jsonEncode({
+                                  "type": "give_plus",
+                                  "id":
+                                      ModalRoute.of(context).settings.arguments,
+                                  "friend": friend["id"],
+                                }),
+                              );
+                            } else if (!notRequest) {
+                              showModalActionSheet(
+                                cancelLabel: "Do nothing",
+                                actions: [
+                                  SheetAction(label: "Accept", key: 0),
+                                  SheetAction(label: "Reject", key: 1),
+                                  SheetAction(label: "Block", key: 2),
+                                ],
+                                context: context,
+                              ).then((value) {
+                                if (value == 0) {
+                                  channel.sink.add(
+                                    jsonEncode({
+                                      "type": "accept",
+                                      "id": ModalRoute.of(context)
+                                          .settings
+                                          .arguments,
+                                      "friend": friend["id"],
+                                    }),
+                                  );
+                                } else if (value == 1) {
+                                  channel.sink.add(
+                                    jsonEncode({
+                                      "type": "reject",
+                                      "id": ModalRoute.of(context)
+                                          .settings
+                                          .arguments,
+                                      "friend": friend["id"],
+                                    }),
+                                  );
+                                } else if (value == 2) {
+                                  channel.sink.add(
+                                    jsonEncode({
+                                      "type": "reject_block",
+                                      "id": ModalRoute.of(context)
+                                          .settings
+                                          .arguments,
+                                      "friend": friend["id"],
+                                    }),
+                                  );
+                                }
+                              });
+                            } else {
+                              showModalActionSheet(
+                                cancelLabel: "Do nothing",
+                                actions: [
+                                  SheetAction(label: "Stop request", key: true),
+                                ],
+                                context: context,
+                              ).then((value) {
+                                if (value == null) return;
+                                channel.sink.add(
+                                  jsonEncode({
+                                    "type": "kill_pending",
+                                    "id": ModalRoute.of(context)
+                                        .settings
+                                        .arguments,
+                                    "friend": friend["id"],
+                                  }),
+                                );
+                              });
+                            }
+                          },
+                        );
+                      },
+                    ),
+                    Container(
+                      height: 30,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            NeumorphicTheme.of(context).current.baseColor,
+                            NeumorphicTheme.of(context)
+                                .current
+                                .baseColor
+                                .withAlpha(0),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Container(
+                        height: 30,
+                        alignment: Alignment.bottomCenter,
+                        decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            NeumorphicTheme.of(context).current.baseColor,
+                            NeumorphicTheme.of(context)
+                                .current
+                                .baseColor
+                                .withAlpha(0)
+                          ],
+                        )),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.bottomRight,
+                      child: Padding(
+                        padding: const EdgeInsets.all(17),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context,constraints){
+                                  return AnimatedBuilder(
+                                    animation: _controller,
+                                    child: OverflowBox(
+                                      maxWidth: constraints.maxWidth,
+                                      alignment: Alignment.topLeft,
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(8.0),
+                                              child: Text(
+                                                data["gives"].toString(),
+                                                maxLines: 1,
+                                                style: TextStyle(
+                                                  fontFamily: "Courier",
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    builder: (context, child) {
+                                      double animationValue = isReversingAnimation ? pow(_controller.value, 4) : pow(_controller.value, 2);
+                                      return Container(
+                                        alignment: Alignment.bottomRight,
+                                        child: SizedBox(
+                                          height: 55,
+                                          child: FractionallySizedBox(
+                                            widthFactor: _controller.value,
+                                            child: Neumorphic(
+                                              style: NeumorphicStyle(
+                                                boxShape:
+                                                NeumorphicBoxShape.roundRect(
+                                                  BorderRadius.circular(27.5),
+                                                ),
+                                                depth: 4 * animationValue,
+                                              ),
+                                              child: Opacity(
+                                                opacity: animationValue,
+                                                child: child,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                            SizedBox(
+                              width: 17,
+                            ),
+                            Align(
+                              alignment: Alignment.bottomRight,
+                              child: SizedBox(
+                                height: 55,
+                                child: NeumorphicButton(
+                                  onPressed: () {
+                                    if (_controller.isAnimating) return;
+                                    if (_controller.isCompleted) {
+                                      _controller.reverse();
+                                      isReversingAnimation = true;
+                                    } else {
+                                      _controller.forward();
+                                      isReversingAnimation = false;
+                                    }
+                                  },
+                                  style: NeumorphicStyle(
+                                    boxShape: NeumorphicBoxShape.roundRect(
+                                        BorderRadius.circular(27.5)),
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  child: Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        left: 10.0,
+                                        right: 10.0,
+                                        top: 5,
+                                      ),
+                                      child: Text(
+                                        data["points"].toString(),
+                                        style: TextStyle(
+                                          fontFamily: "Courier",
+                                          fontSize: 30,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
 }
@@ -595,9 +710,12 @@ class _DiscoverFriendsState extends State<DiscoverFriends> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomNeumorphicAppBar(
-        title: Text(
-          "Discover",
-          style: Constants.titleTextStyle,
+        title: FittedBox(
+          fit: BoxFit.fitWidth,
+          child: Text(
+            "Discover",
+            style: Constants.titleTextStyle,
+          ),
         ),
         buttonStyle: NeumorphicStyle(
           boxShape: NeumorphicBoxShape.circle(),
