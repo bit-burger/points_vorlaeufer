@@ -151,7 +151,6 @@ class SettingsState extends State<Settings> {
                               );
                             },
                             iconSize: 100,
-                            duration: Duration(milliseconds: 500),
                             style: NeumorphicStyle(
                               intensity: 0.75,
                               color:

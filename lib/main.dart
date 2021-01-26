@@ -99,7 +99,6 @@ class _LoginState extends State<Login> {
   @override
   Widget build(BuildContext context) {
     () async {
-      print("halal");
       Future.delayed(Duration(milliseconds: 1), () {
         if (Login.preferences.containsKey(Login.preferencesKey) && !_login) {
           _login = true;
@@ -259,7 +258,14 @@ class MyHomePageState extends State<MyHomePage>
     "friends": [],
     "requests": [],
     "pending": [],
+    "blocks": [],
   };
+
+  void checkIfBulkValid() {
+    while (bulk > data["gives"] && bulk != 1) {
+      bulk ~/= 10;
+    }
+  }
 
   @override
   void initState() {
@@ -292,6 +298,7 @@ class MyHomePageState extends State<MyHomePage>
         if (!parsedData.containsKey("data"))
           setState(() {
             this.data = parsedData;
+            checkIfBulkValid();
           });
         else
           completer.complete(parsedData["data"]);
@@ -371,32 +378,31 @@ class MyHomePageState extends State<MyHomePage>
         buttonStyle: NeumorphicStyle(boxShape: NeumorphicBoxShape.circle()),
       ),
       body: SafeArea(
-        child: (data["friends"] + data["requests"] + data["pending"]).length ==
-                0
-            ? Column(
-                children: [
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Text(
-                        "No friends :(",
-                        style: TextStyle(
-                          fontFamily: "Courier",
-                          fontSize: 30,
+        child: Container(
+          child: Stack(
+            children: [
+              (data["friends"] + data["requests"] + data["pending"]).length == 0
+                  ? Column(
+                      children: [
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: Text(
+                              "No friends :(",
+                              style: TextStyle(
+                                fontFamily: "Courier",
+                                fontSize: 30,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: SizedBox(),
-                  ),
-                ],
-              )
-            : Container(
-                child: Stack(
-                  children: [
-                    ListView.builder(
+                        Expanded(
+                          flex: 2,
+                          child: SizedBox(),
+                        ),
+                      ],
+                    )
+                  : ListView.builder(
                       padding: EdgeInsets.only(
                         top: 30,
                       ),
@@ -434,109 +440,62 @@ class MyHomePageState extends State<MyHomePage>
                         final bool notFriend = i > data["friends"].length;
                         final bool notRequest = i >
                             data["friends"].length + data["requests"].length;
-                        return FriendRow(
-                          iconData: friend["logo"],
-                          title: friend["name"],
-                          status: friend["status"],
-                          colorString: friend["color"],
-                          points: friend["points"],
-                          isButton: notFriend,
-                          onLongPress: notFriend
-                              ? null
-                              : () {
-                                  showModalActionSheet(
-                                    cancelLabel: "Do nothing",
-                                    actions: [
-                                      SheetAction(label: "Unfriend", key: true),
-                                      SheetAction(label: "Block", key: false),
-                                    ],
-                                    context: context,
-                                  ).then((value) {
-                                    if (value == true) {
-                                      channel.sink.add(
-                                        jsonEncode({
-                                          "type": "unfriend",
-                                          "id": ModalRoute.of(context)
-                                              .settings
-                                              .arguments,
-                                          "friend": friend["id"],
-                                        }),
-                                      );
-                                    } else if (value == false) {
-                                      channel.sink.add(
-                                        jsonEncode({
-                                          "type": "unfriend_block",
-                                          "id": ModalRoute.of(context)
-                                              .settings
-                                              .arguments,
-                                          "friend": friend["id"],
-                                        }),
-                                      );
-                                    }
-                                  });
-                                },
-                          onPressed: () {
-                            if (!notFriend) {
-                              channel.sink.add(
-                                jsonEncode({
-                                  "type": "give_plus",
-                                  "id":
-                                      ModalRoute.of(context).settings.arguments,
-                                  "friend": friend["id"],
-                                  "how_much": bulk,
-                                }),
-                              );
-                            } else if (!notRequest) {
-                              showModalActionSheet(
-                                cancelLabel: "Do nothing",
-                                actions: [
-                                  SheetAction(label: "Accept", key: 0),
-                                  SheetAction(label: "Reject", key: 1),
-                                  SheetAction(label: "Block", key: 2),
-                                ],
-                                context: context,
-                              ).then((value) {
-                                if (value == 0) {
-                                  channel.sink.add(
-                                    jsonEncode({
-                                      "type": "accept",
-                                      "id": ModalRoute.of(context)
-                                          .settings
-                                          .arguments,
-                                      "friend": friend["id"],
-                                    }),
-                                  );
-                                } else if (value == 1) {
-                                  channel.sink.add(
-                                    jsonEncode({
-                                      "type": "reject",
-                                      "id": ModalRoute.of(context)
-                                          .settings
-                                          .arguments,
-                                      "friend": friend["id"],
-                                    }),
-                                  );
-                                } else if (value == 2) {
-                                  channel.sink.add(
-                                    jsonEncode({
-                                      "type": "reject_block",
-                                      "id": ModalRoute.of(context)
-                                          .settings
-                                          .arguments,
-                                      "friend": friend["id"],
-                                    }),
-                                  );
-                                }
-                              });
-                            } else {
-                              showModalActionSheet(
-                                cancelLabel: "Do nothing",
-                                actions: [
-                                  SheetAction(label: "Stop request", key: true),
-                                ],
-                                context: context,
-                              ).then((value) {
-                                if (value == null) return;
+                        return Dismissible(
+                          key: Key(friend["id"]),
+                          direction: notFriend
+                              ? DismissDirection.endToStart
+                              : DismissDirection.horizontal,
+                          onDismissed: (direction) {
+                            setState(() {
+                              if ((data["friends"] as List)
+                                      .where((element) =>
+                                          element["id"] == friend["id"])
+                                      .length ==
+                                  1) {
+                                channel.sink.add(
+                                  jsonEncode({
+                                    "type": "unfriend",
+                                    "id": ModalRoute.of(context)
+                                        .settings
+                                        .arguments,
+                                    "friend": friend["id"],
+                                  }),
+                                );
+                                data["friends"] =
+                                    (data["friends"] as List<dynamic>)
+                                        .where((element) =>
+                                            element["id"] != friend["id"])
+                                        .toList();
+                              } else if ((data["requests"] as List)
+                                      .where((element) =>
+                                          element["id"] == friend["id"])
+                                      .length ==
+                                  1) {
+                                data["requests"] =
+                                    (data["requests"] as List<dynamic>)
+                                        .where((element) =>
+                                            element["id"] != friend["id"])
+                                        .toList();
+                                print(data);
+                                channel.sink.add(
+                                  jsonEncode({
+                                    "type": "reject",
+                                    "id": ModalRoute.of(context)
+                                        .settings
+                                        .arguments,
+                                    "friend": friend["id"],
+                                  }),
+                                );
+                              } else if ((data["pending"] as List)
+                                      .where((element) =>
+                                          element["id"] == friend["id"])
+                                      .length ==
+                                  1) {
+                                data["pending"] =
+                                    (data["pending"] as List<dynamic>)
+                                        .where((element) =>
+                                            element["id"] != friend["id"])
+                                        .toList();
                                 channel.sink.add(
                                   jsonEncode({
                                     "type": "kill_pending",
@@ -546,318 +505,623 @@ class MyHomePageState extends State<MyHomePage>
                                     "friend": friend["id"],
                                   }),
                                 );
+                              }
+                            });
+                          },
+                          child: FriendRow(
+                            iconData: friend["logo"],
+                            title: friend["name"],
+                            status: friend["status"],
+                            colorString: friend["color"],
+                            points: friend["points"],
+                            isButton: true,
+                            onLongPress: notFriend
+                                ? null
+                                : () {
+                                    showModalActionSheet(
+                                      cancelLabel: "Do nothing",
+                                      actions: [
+                                        SheetAction(
+                                            label: "Unfriend", key: true),
+                                        SheetAction(label: "Block", key: false),
+                                      ],
+                                      context: context,
+                                    ).then((value) {
+                                      if (value == true) {
+                                        channel.sink.add(
+                                          jsonEncode({
+                                            "type": "unfriend",
+                                            "id": ModalRoute.of(context)
+                                                .settings
+                                                .arguments,
+                                            "friend": friend["id"],
+                                          }),
+                                        );
+                                      } else if (value == false) {
+                                        channel.sink.add(
+                                          jsonEncode({
+                                            "type": "unfriend_block",
+                                            "id": ModalRoute.of(context)
+                                                .settings
+                                                .arguments,
+                                            "friend": friend["id"],
+                                          }),
+                                        );
+                                      }
+                                    });
+                                  },
+                            onPressed: () {
+                              if (!notFriend) {
+                                channel.sink.add(
+                                  jsonEncode({
+                                    "type": "give_plus",
+                                    "id": ModalRoute.of(context)
+                                        .settings
+                                        .arguments,
+                                    "friend": friend["id"],
+                                    "how_much": bulk,
+                                  }),
+                                );
+                                setState(() {
+                                  checkIfBulkValid();
+                                });
+                              } else if (!notRequest) {
+                                showModalActionSheet(
+                                  cancelLabel: "Do nothing",
+                                  actions: [
+                                    SheetAction(label: "Accept", key: 0),
+                                    SheetAction(label: "Reject", key: 1),
+                                    SheetAction(label: "Block", key: 2),
+                                  ],
+                                  context: context,
+                                ).then((value) {
+                                  if (value == 0) {
+                                    channel.sink.add(
+                                      jsonEncode({
+                                        "type": "accept",
+                                        "id": ModalRoute.of(context)
+                                            .settings
+                                            .arguments,
+                                        "friend": friend["id"],
+                                      }),
+                                    );
+                                  } else if (value == 1) {
+                                    channel.sink.add(
+                                      jsonEncode({
+                                        "type": "reject",
+                                        "id": ModalRoute.of(context)
+                                            .settings
+                                            .arguments,
+                                        "friend": friend["id"],
+                                      }),
+                                    );
+                                  } else if (value == 2) {
+                                    channel.sink.add(
+                                      jsonEncode({
+                                        "type": "reject_block",
+                                        "id": ModalRoute.of(context)
+                                            .settings
+                                            .arguments,
+                                        "friend": friend["id"],
+                                      }),
+                                    );
+                                  }
+                                });
+                              } else {
+                                showModalActionSheet(
+                                  cancelLabel: "Do nothing",
+                                  actions: [
+                                    SheetAction(
+                                        label: "Stop request", key: true),
+                                  ],
+                                  context: context,
+                                ).then((value) {
+                                  if (value == null) return;
+                                  channel.sink.add(
+                                    jsonEncode({
+                                      "type": "kill_pending",
+                                      "id": ModalRoute.of(context)
+                                          .settings
+                                          .arguments,
+                                      "friend": friend["id"],
+                                    }),
+                                  );
+                                });
+                              }
+                            },
+                          ),
+                          confirmDismiss: (direction) {
+                            if (!notFriend &&
+                                direction == DismissDirection.startToEnd) {
+                              print("yallah haalblblbl");
+                              showModalActionSheet(
+                                cancelLabel: "Do nothing",
+                                actions: [
+                                  SheetAction(label: "Unfriend", key: true),
+                                  SheetAction(label: "Block", key: false),
+                                ],
+                                context: context,
+                              ).then((value) {
+                                if (value == true) {
+                                  channel.sink.add(
+                                    jsonEncode({
+                                      "type": "unfriend",
+                                      "id": ModalRoute.of(context)
+                                          .settings
+                                          .arguments,
+                                      "friend": friend["id"],
+                                    }),
+                                  );
+                                } else if (value == false) {
+                                  channel.sink.add(
+                                    jsonEncode({
+                                      "type": "unfriend_block",
+                                      "id": ModalRoute.of(context)
+                                          .settings
+                                          .arguments,
+                                      "friend": friend["id"],
+                                    }),
+                                  );
+                                }
                               });
+                              return Future(() => false);
                             }
+                            return Future(() => true);
                           },
                         );
                       },
                     ),
+              Container(
+                height: 30,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      NeumorphicTheme.of(context).current.baseColor,
+                      NeumorphicTheme.of(context)
+                          .current
+                          .baseColor
+                          .withAlpha(0),
+                    ],
+                  ),
+                ),
+              ),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
                     Container(
                       height: 30,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            NeumorphicTheme.of(context).current.baseColor,
-                            NeumorphicTheme.of(context)
-                                .current
-                                .baseColor
-                                .withAlpha(0),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Align(
                       alignment: Alignment.bottomCenter,
-                      child: Container(
-                        height: 30,
-                        alignment: Alignment.bottomCenter,
-                        decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            NeumorphicTheme.of(context).current.baseColor,
-                            NeumorphicTheme.of(context)
-                                .current
-                                .baseColor
-                                .withAlpha(0)
-                          ],
-                        )),
-                      ),
+                      decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          NeumorphicTheme.of(context).current.baseColor,
+                          NeumorphicTheme.of(context)
+                              .current
+                              .baseColor
+                              .withAlpha(0)
+                        ],
+                      )),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.only(right: Constants.gap),
-                      child: LayoutBuilder(
-                        builder: (context, outerConstraints) {
-                          return Align(
-                            alignment: Alignment.bottomRight,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Expanded(
-                                  flex: 1,
-                                  child: LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      return AnimatedBuilder(
-                                        animation: _controller,
-                                        child: OverflowBox(
-                                          maxWidth: (outerConstraints.maxWidth -
-                                              (outerConstraints.maxWidth -
-                                                      constraints.maxWidth) *
-                                                  _controller.value),
-                                          alignment: Alignment.bottomLeft,
-                                          child: OverflowBox(
-                                            maxWidth: constraints.maxWidth,
-                                            alignment: Alignment.topLeft,
-                                            child: Padding(
-                                              padding: EdgeInsets.symmetric(
-                                                  horizontal: 10),
+                    AnimatedBuilder(
+                        animation: _controller,
+                        builder: (context, child) {
+                          return Container(
+                            color:
+                                NeumorphicTheme.of(context).current.baseColor,
+                            height: pow(_controller.value, 3) * 90,
+                          );
+                        })
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: Constants.gap),
+                child: LayoutBuilder(
+                  builder: (context, outerConstraints) {
+                    return Align(
+                      alignment: Alignment.bottomRight,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            flex: 1,
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                return AnimatedBuilder(
+                                  animation: _controller,
+                                  child: OverflowBox(
+                                    maxWidth: (outerConstraints.maxWidth -
+                                        (outerConstraints.maxWidth -
+                                                constraints.maxWidth) *
+                                            _controller.value),
+                                    alignment: Alignment.bottomLeft,
+                                    child: OverflowBox(
+                                      maxWidth:
+                                          constraints.maxWidth - Constants.gap,
+                                      alignment: Alignment.topLeft,
+                                      child: Padding(
+                                        padding: EdgeInsets.only(
+                                          top: 5,
+                                          left: 10,
+                                          right: 10,
+                                        ),
+                                        child: FittedBox(
+                                          fit: BoxFit.contain,
+                                          child: Text(
+                                            data["gives"].toString(),
+                                            style: TextStyle(
+                                              fontFamily: "Courier",
+                                              fontSize: 30,
+                                              fontWeight: FontWeight.bold,
                                             ),
                                           ),
                                         ),
-                                        builder: (context, child) {
-                                          double animationValue =
-                                              isReversingAnimation
-                                                  ? pow(_controller.value, 2)
-                                                  : pow(_controller.value, 2);
-                                          return Row(
-                                            children: [
-                                              Expanded(
-                                                child: OverflowBox(
-                                                  maxWidth: outerConstraints
-                                                          .maxWidth -
-                                                      (outerConstraints
-                                                                  .maxWidth -
-                                                              constraints
-                                                                  .maxWidth) *
-                                                          _controller.value,
-                                                  alignment:
-                                                      Alignment.bottomLeft,
-                                                  child: Container(
-                                                    alignment:
-                                                        Alignment.bottomRight,
-                                                    child: SizedBox(
-                                                      height: 55,
-                                                      width: _controller.value *
-                                                              (constraints
-                                                                      .maxWidth -
-                                                                  55) +
-                                                          55,
-                                                      child: Padding(
-                                                        padding:
-                                                            EdgeInsets.only(
-                                                                left: Constants
-                                                                    .gap),
-                                                        child: Neumorphic(
-                                                          style:
-                                                              NeumorphicStyle(
-                                                            boxShape:
-                                                                NeumorphicBoxShape
-                                                                    .roundRect(
-                                                              BorderRadius
-                                                                  .circular(
-                                                                27.5,
-                                                              ),
-                                                            ),
-                                                            depth: 4 *
-                                                                animationValue,
-                                                          ),
-                                                          child: Opacity(
-                                                            opacity:
-                                                                animationValue,
-                                                            child: child,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                    },
+                                      ),
+                                    ),
                                   ),
-                                ),
-                                Expanded(
-                                  flex: 1,
-                                  child: LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      return AnimatedBuilder(
-                                        animation: _controller,
-                                        child: OverflowBox(
-                                          maxWidth: (outerConstraints.maxWidth -
-                                              (outerConstraints.maxWidth -
+                                  builder: (context, child) {
+                                    double animationValue = isReversingAnimation
+                                        ? pow(_controller.value, 2)
+                                        : pow(_controller.value, 1);
+                                    return OverflowBox(
+                                      maxWidth: outerConstraints.maxWidth -
+                                          (outerConstraints.maxWidth -
                                                   constraints.maxWidth) *
-                                                  _controller.value),
-                                          alignment: Alignment.bottomLeft,
-                                          child: OverflowBox(
-                                            maxWidth: constraints.maxWidth,
-                                            alignment: Alignment.topLeft,
-                                            child: Padding(
-                                              padding: EdgeInsets.symmetric(
-                                                  horizontal: 10),
-                                            ),
-                                          ),
-                                        ),
-                                        builder: (context, child) {
-                                          double animationValue =
-                                          isReversingAnimation
-                                              ? pow(_controller.value, 4)
-                                              : pow(_controller.value, 4);
-                                          return Row(
-                                            children: [
-                                              Expanded(
+                                              _controller.value,
+                                      alignment: Alignment.bottomLeft,
+                                      child: Container(
+                                        alignment: Alignment.bottomRight,
+                                        child: Stack(
+                                          alignment: Alignment.bottomRight,
+                                          children: [
+                                            SizedBox(
+                                              width: constraints.maxWidth *
+                                                  animationValue,
+                                              child: Padding(
+                                                padding: EdgeInsets.only(
+                                                    left: 30,
+                                                    bottom: sqrt(
+                                                            _controller.value) *
+                                                        60),
                                                 child: OverflowBox(
-                                                  maxWidth: outerConstraints
-                                                      .maxWidth -
-                                                      (outerConstraints
-                                                          .maxWidth -
-                                                          constraints
-                                                              .maxWidth) *
-                                                          _controller.value,
-                                                  alignment:
-                                                  Alignment.bottomLeft,
-                                                  child: Container(
+                                                  maxWidth:
+                                                      constraints.maxWidth,
+                                                  child: Align(
                                                     alignment:
-                                                    Alignment.bottomRight,
-                                                    child: SizedBox(
-                                                      height: 55,
-                                                      width: _controller.value *
-                                                          (constraints
-                                                              .maxWidth -
-                                                              55) +
-                                                          55,
-                                                      child: Padding(
-                                                        padding:
-                                                        EdgeInsets.only(
-                                                            left: Constants
-                                                                .gap),
-                                                        child: Neumorphic(
-                                                          style:
-                                                          NeumorphicStyle(
-                                                            boxShape:
-                                                            NeumorphicBoxShape
-                                                                .roundRect(
-                                                              BorderRadius
-                                                                  .circular(
-                                                                27.5,
-                                                              ),
-                                                            ),
-                                                            depth: 4 *
-                                                                animationValue,
-                                                          ),
-                                                          child: Opacity(
-                                                            opacity:
-                                                            animationValue,
-                                                            child: child,
-                                                          ),
-                                                        ),
+                                                        Alignment.bottomLeft,
+                                                    child: Opacity(
+                                                      opacity: pow(
+                                                          animationValue, 3),
+                                                      child: Text(
+                                                        "gives",
+                                                        style: Constants
+                                                            .labelTextStyle,
                                                       ),
                                                     ),
                                                   ),
                                                 ),
                                               ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                    },
+                                            ),
+                                            SizedBox(
+                                              height: 55,
+                                              width: _controller.value *
+                                                      (constraints.maxWidth -
+                                                          55) +
+                                                  55,
+                                              child: Padding(
+                                                padding: EdgeInsets.only(
+                                                    right: Constants.gap),
+                                                child: Neumorphic(
+                                                  style: NeumorphicStyle(
+                                                    boxShape: NeumorphicBoxShape
+                                                        .roundRect(
+                                                      BorderRadius.circular(
+                                                        27.5,
+                                                      ),
+                                                    ),
+                                                    depth: 4 * animationValue,
+                                                  ),
+                                                  child: Opacity(
+                                                    opacity: animationValue,
+                                                    child: child,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                          Expanded(
+                            flex: 1,
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                return AnimatedBuilder(
+                                  animation: _controller,
+                                  child: OverflowBox(
+                                    maxWidth: (outerConstraints.maxWidth -
+                                        (outerConstraints.maxWidth -
+                                                constraints.maxWidth) *
+                                            _controller.value),
+                                    alignment: Alignment.bottomLeft,
+                                    child: OverflowBox(
+                                      maxWidth: constraints.maxWidth,
+                                      alignment: Alignment.topLeft,
+                                      child: Padding(
+                                        padding: EdgeInsets.only(
+                                          top: 5,
+                                          left: 10,
+                                          right: 10,
+                                        ),
+                                        child: FittedBox(
+                                          fit: BoxFit.contain,
+                                          child: Text(
+                                            bulk.toString(),
+                                            style: TextStyle(
+                                              fontFamily: "Courier",
+                                              fontSize: 30,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                                Expanded(
-                                  flex: 1,
-                                  child: LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      return AnimatedBuilder(
-                                        animation: _controller,
-                                        child: OverflowBox(
-                                          maxWidth: (outerConstraints.maxWidth -
-                                              (outerConstraints.maxWidth -
+                                  builder: (context, child) {
+                                    double animationValue = isReversingAnimation
+                                        ? pow(_controller.value, 5)
+                                        : pow(_controller.value, 2.5);
+                                    return OverflowBox(
+                                      maxWidth: outerConstraints.maxWidth -
+                                          (outerConstraints.maxWidth -
                                                   constraints.maxWidth) *
-                                                  _controller.value),
-                                          alignment: Alignment.bottomLeft,
-                                          child: OverflowBox(
-                                            maxWidth: constraints.maxWidth,
-                                            alignment: Alignment.topLeft,
-                                            child: Padding(
-                                              padding: EdgeInsets.symmetric(
-                                                  horizontal: 10),
-                                            ),
-                                          ),
-                                        ),
-                                        builder: (context, child) {
-                                          double animationValue =
-                                          isReversingAnimation
-                                              ? pow(_controller.value, 15)
-                                              : pow(_controller.value, 15);
-                                          return Row(
-                                            children: [
-                                              Expanded(
+                                              _controller.value,
+                                      alignment: Alignment.bottomLeft,
+                                      child: Container(
+                                        alignment: Alignment.bottomRight,
+                                        child: Stack(
+                                          alignment: Alignment.bottomRight,
+                                          children: [
+                                            SizedBox(
+                                              width: constraints.maxWidth *
+                                                  animationValue,
+                                              child: Padding(
+                                                padding: EdgeInsets.only(
+                                                    left: 30,
+                                                    bottom: sqrt(
+                                                            _controller.value) *
+                                                        60),
                                                 child: OverflowBox(
-                                                  maxWidth: outerConstraints
-                                                      .maxWidth -
-                                                      (outerConstraints
-                                                          .maxWidth -
-                                                          constraints
-                                                              .maxWidth) *
-                                                          _controller.value,
-                                                  alignment:
-                                                  Alignment.bottomLeft,
-                                                  child: Container(
+                                                  maxWidth:
+                                                      constraints.maxWidth,
+                                                  child: Align(
                                                     alignment:
-                                                    Alignment.bottomRight,
-                                                    child: SizedBox(
-                                                      height: 55,
-                                                      width: _controller.value *
-                                                          (constraints
-                                                              .maxWidth -
-                                                              55) +
-                                                          55,
-                                                      child: Padding(
-                                                        padding:
-                                                        EdgeInsets.only(
-                                                            left: Constants
-                                                                .gap),
-                                                        child: Neumorphic(
-                                                          style:
-                                                          NeumorphicStyle(
-                                                            boxShape:
-                                                            NeumorphicBoxShape
-                                                                .roundRect(
-                                                              BorderRadius
-                                                                  .circular(
-                                                                27.5,
-                                                              ),
-                                                            ),
-                                                            depth: 4 *
-                                                                animationValue,
-                                                          ),
-                                                          child: Opacity(
-                                                            opacity:
-                                                            animationValue,
-                                                            child: child,
-                                                          ),
-                                                        ),
+                                                        Alignment.bottomLeft,
+                                                    child: Opacity(
+                                                      opacity: pow(
+                                                          animationValue, 3),
+                                                      child: Text(
+                                                        "bulk",
+                                                        style: Constants
+                                                            .labelTextStyle,
                                                       ),
                                                     ),
                                                   ),
                                                 ),
                                               ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                    },
+                                            ),
+                                            SizedBox(
+                                              height: 55,
+                                              width: _controller.value *
+                                                      (constraints.maxWidth -
+                                                          55) +
+                                                  55,
+                                              child: Padding(
+                                                padding: EdgeInsets.only(
+                                                    right: Constants.gap),
+                                                child: NeumorphicButton(
+                                                  padding: EdgeInsets.zero,
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      if (data["gives"] >
+                                                          bulk * 10) {
+                                                        bulk *= 10;
+                                                      } else {
+                                                        bulk = 1;
+                                                      }
+                                                    });
+                                                  },
+                                                  style: NeumorphicStyle(
+                                                    boxShape: NeumorphicBoxShape
+                                                        .roundRect(
+                                                      BorderRadius.circular(
+                                                        27.5,
+                                                      ),
+                                                    ),
+                                                    depth: 4 * animationValue,
+                                                  ),
+                                                  child: Opacity(
+                                                    opacity: animationValue,
+                                                    child: child,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                          Expanded(
+                            flex: 1,
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                return AnimatedBuilder(
+                                  animation: _controller,
+                                  child: OverflowBox(
+                                    maxWidth: (outerConstraints.maxWidth -
+                                        (outerConstraints.maxWidth -
+                                                constraints.maxWidth) *
+                                            _controller.value),
+                                    alignment: Alignment.bottomLeft,
+                                    child: OverflowBox(
+                                      maxWidth: constraints.maxWidth,
+                                      alignment: Alignment.topLeft,
+                                      child: Padding(
+                                        padding: EdgeInsets.only(
+                                          top: 5,
+                                          left: 10,
+                                          right: 10,
+                                        ),
+                                        child: FittedBox(
+                                          fit: BoxFit.contain,
+                                          child: Text(
+                                            data["blocks"].length.toString(),
+                                            style: TextStyle(
+                                              fontFamily: "Courier",
+                                              fontSize: 30,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                                Expanded(
-                                  child: Padding(
+                                  builder: (context, child) {
+                                    double animationValue = isReversingAnimation
+                                        ? pow(_controller.value, 15)
+                                        : pow(_controller.value, 7.5);
+                                    return OverflowBox(
+                                      maxWidth: outerConstraints.maxWidth -
+                                          (outerConstraints.maxWidth -
+                                                  constraints.maxWidth) *
+                                              _controller.value,
+                                      alignment: Alignment.bottomLeft,
+                                      child: Container(
+                                        alignment: Alignment.bottomRight,
+                                        child: Stack(
+                                          alignment: Alignment.bottomRight,
+                                          children: [
+                                            SizedBox(
+                                              width: constraints.maxWidth *
+                                                  animationValue,
+                                              child: Padding(
+                                                padding: EdgeInsets.only(
+                                                    left: 30,
+                                                    bottom: sqrt(
+                                                            _controller.value) *
+                                                        60),
+                                                child: OverflowBox(
+                                                  maxWidth:
+                                                      constraints.maxWidth,
+                                                  child: Align(
+                                                    alignment:
+                                                        Alignment.bottomLeft,
+                                                    child: Opacity(
+                                                      opacity: pow(
+                                                          animationValue, 3),
+                                                      child: Text(
+                                                        "blocks",
+                                                        style: Constants
+                                                            .labelTextStyle,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            SizedBox(
+                                              height: 55,
+                                              width: _controller.value *
+                                                      (constraints.maxWidth -
+                                                          55) +
+                                                  55,
+                                              child: Padding(
+                                                padding: EdgeInsets.only(
+                                                    right: Constants.gap),
+                                                child: Neumorphic(
+                                                  style: NeumorphicStyle(
+                                                    boxShape: NeumorphicBoxShape
+                                                        .roundRect(
+                                                      BorderRadius.circular(
+                                                        27.5,
+                                                      ),
+                                                    ),
+                                                    depth: 4 * animationValue,
+                                                  ),
+                                                  child: Opacity(
+                                                    opacity: animationValue,
+                                                    child: child,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                          Expanded(child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              return Stack(
+                                alignment: Alignment.bottomRight,
+                                children: [
+                                  AnimatedBuilder(
+                                      animation: _controller,
+                                      builder: (context, child) {
+                                        double animationValue =
+                                            isReversingAnimation
+                                                ? pow(_controller.value, 25)
+                                                : pow(_controller.value, 12.5);
+                                        return SizedBox(
+                                          width: constraints.maxWidth *
+                                              animationValue,
+                                          child: Padding(
+                                            padding: EdgeInsets.only(
+                                                left: 30,
+                                                bottom:
+                                                    sqrt(_controller.value) *
+                                                        60),
+                                            child: OverflowBox(
+                                              maxWidth: constraints.maxWidth,
+                                              child: Align(
+                                                alignment: Alignment.bottomLeft,
+                                                child: Opacity(
+                                                  opacity:
+                                                      pow(animationValue, 3),
+                                                  child: Text(
+                                                    "points",
+                                                    style: Constants
+                                                        .labelTextStyle,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }),
+                                  Padding(
                                     padding:
-                                        EdgeInsets.only(left: Constants.gap),
+                                        EdgeInsets.only(right: Constants.gap),
                                     child: Align(
                                       alignment: Alignment.bottomRight,
                                       child: SizedBox(
@@ -880,15 +1144,15 @@ class MyHomePageState extends State<MyHomePage>
                                                         27.5)),
                                           ),
                                           padding: EdgeInsets.zero,
-                                          child: Center(
-                                            child: Padding(
-                                              padding: EdgeInsets.only(
-                                                left: 10.0,
-                                                right: 10.0,
-                                                top: 5,
-                                              ),
+                                          child: Padding(
+                                            padding: EdgeInsets.only(
+                                              left: 10.0,
+                                              right: 10.0,
+                                              top: 5,
+                                            ),
+                                            child: SizedBox.expand(
                                               child: FittedBox(
-                                                fit: BoxFit.fitWidth,
+                                                fit: BoxFit.contain,
                                                 child: Text(
                                                   data["points"].toString(),
                                                   style: TextStyle(
@@ -904,16 +1168,19 @@ class MyHomePageState extends State<MyHomePage>
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+                                ],
+                              );
+                            },
+                          )),
+                        ],
                       ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
+            ],
+          ),
+        ),
       ),
     );
   }

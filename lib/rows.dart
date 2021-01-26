@@ -23,7 +23,6 @@ class FriendRow extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    assert(!isButton||onLongPress==null);
     final body = SizedBox(
       height: 55,
       child: Row(
@@ -88,27 +87,13 @@ class FriendRow extends StatelessWidget {
         ],
       ),
     );
-    return isButton
-        ? Padding(
-            padding: const EdgeInsets.all(20).copyWith(top: 0, bottom: 40),
-            child: NeumorphicButton(
-              padding: EdgeInsets.zero,
-              duration: Duration(milliseconds: 250),
-              onPressed: onPressed,
-              style: NeumorphicStyle(
-                boxShape:
-                    NeumorphicBoxShape.roundRect(BorderRadius.circular(27.5)),
-                color: Constants.colorCodes[colorString],
-              ),
-              child: body,
-            ),
-          )
-        : GestureDetector(
-            onLongPress: onLongPress,
-            child: Padding(
-              padding: const EdgeInsets.all(20).copyWith(top: 0, bottom: 40),
-              child: Neumorphic(
-                duration: Duration(seconds: 1),
+    return Padding(
+            padding: const EdgeInsets.all(Constants.gap).copyWith(top: 0, bottom: 40),
+            child: GestureDetector(
+              onLongPress: onLongPress,
+              child: NeumorphicButton(
+                padding: EdgeInsets.zero,
+                onPressed: onPressed,
                 style: NeumorphicStyle(
                   boxShape:
                       NeumorphicBoxShape.roundRect(BorderRadius.circular(27.5)),
