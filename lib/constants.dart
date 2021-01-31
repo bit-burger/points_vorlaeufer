@@ -394,10 +394,9 @@ IconData getIconData(String s, [String alternative]) {
   } else if (normalIcons.contains(s)) {
     if (Platform.isIOS) {
       return Ionicons.getIconData("ios-" + s);
-    } else {
-      return Ionicons.getIconData("md-" + s);
     }
   }
+  return Ionicons.getIconData("md-" + s);
 }
 
 const Map<String, Color> colorCodes = {
@@ -439,3 +438,4 @@ TextStyle labelTextStyle = TextStyle(
 );
 
 const double gap = 17;
+

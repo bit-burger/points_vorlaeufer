@@ -17,9 +17,118 @@ import 'rows.dart';
 import 'constants.dart' as Constants;
 import 'package:points/custom_neumorphic_sliders.dart';
 
+class App {
+  static void updatePropertyRequest(String property, value) {
+    App.data[property] = value;
+    channel.sink.add(
+        jsonEncode({"type": "change", "property": property, "value": value}));
+    controller.add(App.data);
+  }
+
+  static void customRequest(Map<String, dynamic> map) {
+    channel.sink.add(jsonEncode(map));
+  }
+
+  static const String preferencesKey = "id";
+  static SharedPreferences preferences;
+
+  static final RouteObserver<PageRoute> routeObserver =
+      RouteObserver<PageRoute>();
+
+  static IOWebSocketChannel channel;
+  static StreamController controller;
+
+  static Stream<Map<String, dynamic>> stream;
+  static Map<String, dynamic> data = {
+    "name": "",
+    "logo": "",
+    "status": "new to points",
+    "color": "white",
+    "friends": [],
+    "requests": [],
+    "pending": [],
+    "blocks": [],
+  };
+
+  static void fs(Map<String,dynamic> friend,String command,{String remove,String place}) {
+    App.channel.sink.add(
+      jsonEncode({
+        "type": command,
+        "friend": friend["id"],
+      }),
+    );
+    if(remove!=null)
+    App.data[remove] =
+        (App.data[remove] as List<dynamic>)
+            .where((element) =>
+        element["id"] != friend["id"])
+            .toList();
+    if(place!=null)
+      App.data[place].add(friend);
+    App.controller.add(App.data);
+  }
+
+  static void end() {
+    App.controller.close();
+    App.controller = null;
+
+    App.channel?.sink?.close();
+    App.channel = null;
+  }
+
+  static void begin() {
+    //ACHTUNG: DEFAULT VALUE VON EINEM STREAMBUILDER MUSS AUF App.data gestellt werden
+    if (App.channel != null) {
+      App.channel?.sink?.close();
+      App.channel = null;
+      App.controller.close();
+      App.controller = null;
+    }
+    App.controller = StreamController<Map<String, dynamic>>();
+    try {
+      App.channel = IOWebSocketChannel.connect(
+        'ws://192.168.178.26:3000',
+        headers: {"id": App.preferences.getString(App.preferencesKey)},
+      );
+    } catch (error) {
+      print(error);
+    }
+
+    App.channel.stream.listen((event) {
+      final Map<String, dynamic> data = jsonDecode(event);
+      print("data:\n" + data.toString());
+      if (data["type"] == "initialupdate") {
+        App.data = data;
+      } else if (data["type"] == "selfupdate") {
+        App.data[data["property"]] = data["value"];
+      } else if (data["type"] == "friendupdate") {
+        (App.data["friends"] + App.data["pending"] + App.data["requests"]
+                    as List)
+                .firstWhere((element) => element["id"] == data["friend"])[
+            data["property"]] = data["value"];
+        if(data.containsKey("points")) App.data["gives"] -= data["points"];
+      } else if (data["type"] == "fs") {
+        final friend = data["friend"];
+        if(data.containsKey("remove")) {
+          (App.data[data["remove"]] as List).removeWhere((element) => element["id"]==friend["id"]);
+        }
+        if(data.containsKey("place")) {
+          (App.data[data["place"]] as List).add(friend);
+        }
+      } else if (data["type"] == "initialupdate") {
+        App.data = data;
+      } else {
+        throw ErrorDescription("type nonexistnat");
+      }
+      App.controller.add(App.data);
+    });
+    App.stream = App.controller.stream.asBroadcastStream();
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  Login.preferences = await SharedPreferences.getInstance();
+  App.preferences = await SharedPreferences.getInstance();
   runApp(MyApp());
 }
 
@@ -44,21 +153,18 @@ class MyApp extends StatelessWidget {
           return DiscoverFriends();
         }
       },
+      navigatorObservers: [App.routeObserver],
       initialRoute: "/login",
     );
   }
 }
 
 class Login extends StatefulWidget {
-  static const String preferencesKey = "id";
-
-  static SharedPreferences preferences;
-
   @override
-  _LoginState createState() => _LoginState();
+  _AppState createState() => _AppState();
 }
 
-class _LoginState extends State<Login> {
+class _AppState extends State<Login> {
   FocusNode firstNode;
   String firstString;
 
@@ -80,12 +186,22 @@ class _LoginState extends State<Login> {
   }
 
   void login() {
+    App.data = {
+      "name": "",
+      "logo": "",
+      "status": "new to points",
+      "color": "white",
+      "friends": [],
+      "requests": [],
+      "pending": [],
+      "blocks": [],
+    };
     Dio()
         .get("http://192.168.178.26:8080/$firstString/$secondString")
         .then((value) async {
       print("Value: " + value.toString());
-      await Login.preferences.setString(
-        Login.preferencesKey,
+      await App.preferences.setString(
+        App.preferencesKey,
         value.toString(),
       );
       Navigator.pushNamed(context, "/home", arguments: value.toString());
@@ -100,10 +216,10 @@ class _LoginState extends State<Login> {
   Widget build(BuildContext context) {
     () async {
       Future.delayed(Duration(milliseconds: 1), () {
-        if (Login.preferences.containsKey(Login.preferencesKey) && !_login) {
+        if (App.preferences.containsKey(App.preferencesKey) && !_login) {
           _login = true;
           Navigator.of(context).pushNamed("/home",
-              arguments: Login.preferences.getString(Login.preferencesKey));
+              arguments: App.preferences.getString(App.preferencesKey));
         }
       });
     }();
@@ -242,27 +358,12 @@ class MyHomePageState extends State<MyHomePage>
 
   AnimationController _controller;
 
-  IOWebSocketChannel channel;
-
-  Completer completer;
-
   bool isReversingAnimation = false;
 
   int bulk = 1;
 
-  Map<String, dynamic> data = {
-    "name": "",
-    "logo": "",
-    "status": "new to points",
-    "color": "white",
-    "friends": [],
-    "requests": [],
-    "pending": [],
-    "blocks": [],
-  };
-
   void checkIfBulkValid() {
-    while (bulk > data["gives"] && bulk != 1) {
+    while (bulk > App.data["gives"] && bulk != 1) {
       bulk ~/= 10;
     }
   }
@@ -281,27 +382,26 @@ class MyHomePageState extends State<MyHomePage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    channel.sink.close();
+    App.end();
     _controller.dispose();
     super.dispose();
   }
 
   void connect() {
-    channel?.sink?.close();
-    channel = IOWebSocketChannel.connect(
-      'ws://192.168.178.26:3000',
-      headers: {"id": Login.preferences.getString(Login.preferencesKey)},
-    );
-    channel.stream.listen(
-      (data) {
-        final Map<String, dynamic> parsedData = jsonDecode(data);
-        if (!parsedData.containsKey("data"))
-          setState(() {
-            this.data = parsedData;
-            checkIfBulkValid();
-          });
-        else
-          completer.complete(parsedData["data"]);
+    App.begin();
+    App.stream.listen(
+      (_data) {
+        print("data has come to us ; )");
+        setState(() {
+          checkIfBulkValid();
+        });
+        // final Map<String, dynamic> parsedData = jsonDecode(data);
+        // if (!parsedData.containsKey("data"))
+        //   setState(() {
+        //     checkIfBulkValid();
+        //   });
+        // else
+        //   completer.complete(parsedData["data"]);
       },
     );
     print("reconnected");
@@ -315,7 +415,7 @@ class MyHomePageState extends State<MyHomePage>
       connect();
       print("connected");
     } else {
-      channel?.sink?.close();
+      App.end();
     }
   }
 
@@ -324,7 +424,7 @@ class MyHomePageState extends State<MyHomePage>
     return Scaffold(
       appBar: CustomNeumorphicAppBar(
         title: Text(
-          data["name"] ?? "",
+          App.data["name"] ?? "",
           style: Constants.titleTextStyle,
         ),
         customBackWidget: NeumorphicButton(
@@ -332,23 +432,6 @@ class MyHomePageState extends State<MyHomePage>
             Navigator.pushNamed(
               context,
               "/discover",
-              arguments: [
-                () {
-                  Completer completer = Completer<List<dynamic>>();
-                  this.completer = completer;
-                  this.channel.sink.add(
-                        jsonEncode(
-                          {
-                            "type": "batch",
-                            "id": Login.preferences
-                                .getString(Login.preferencesKey),
-                          },
-                        ),
-                      );
-                  return completer.future;
-                }(),
-                this,
-              ],
             );
           },
           style: NeumorphicStyle(
@@ -366,8 +449,7 @@ class MyHomePageState extends State<MyHomePage>
             ),
             onPressed: () {
               Navigator.of(context).pushNamed(
-                "/settings",
-                arguments: this,
+                "/settings"
               );
             },
             child: Icon(
@@ -378,10 +460,13 @@ class MyHomePageState extends State<MyHomePage>
         buttonStyle: NeumorphicStyle(boxShape: NeumorphicBoxShape.circle()),
       ),
       body: SafeArea(
+        minimum: EdgeInsets.only(bottom: Constants.gap),
         child: Container(
           child: Stack(
             children: [
-              (data["friends"] + data["requests"] + data["pending"]).length == 0
+              (App.data["friends"] + App.data["requests"] + App.data["pending"])
+                          .length ==
+                      0
                   ? Column(
                       children: [
                         Expanded(
@@ -407,22 +492,24 @@ class MyHomePageState extends State<MyHomePage>
                         top: 30,
                       ),
                       itemCount: () {
-                        if (!data.containsKey("friends")) return 0;
-                        var friends = (data["friends"] as List).length;
-                        final requests = (data["requests"] as List).length + 1;
-                        final pending = (data["pending"] as List).length + 1;
+                        if (!App.data.containsKey("friends")) return 0;
+                        var friends = (App.data["friends"] as List).length;
+                        final requests =
+                            (App.data["requests"] as List).length + 1;
+                        final pending =
+                            (App.data["pending"] as List).length + 1;
                         if (requests > 1) friends += requests;
                         if (pending > 1) friends += pending;
                         return friends;
                       }(),
                       itemBuilder: (context, i) {
-                        final List<dynamic> array = data["friends"] +
-                            (data["requests"].isEmpty
+                        final List<dynamic> array = App.data["friends"] +
+                            (App.data["requests"].isEmpty
                                 ? []
-                                : (<dynamic>[true] + data["requests"])) +
-                            (data["pending"].isEmpty
+                                : (<dynamic>[true] + App.data["requests"])) +
+                            (App.data["pending"].isEmpty
                                 ? []
-                                : (<dynamic>[false] + data["pending"]));
+                                : (<dynamic>[false] + App.data["pending"]));
                         final _friend = array[i];
                         if (_friend is bool)
                           return Align(
@@ -437,9 +524,10 @@ class MyHomePageState extends State<MyHomePage>
                             ),
                           );
                         final friend = _friend as Map<String, dynamic>;
-                        final bool notFriend = i > data["friends"].length;
+                        final bool notFriend = i > App.data["friends"].length;
                         final bool notRequest = i >
-                            data["friends"].length + data["requests"].length;
+                            App.data["friends"].length +
+                                App.data["requests"].length;
                         return Dismissible(
                           key: Key(friend["id"]),
                           direction: notFriend
@@ -447,61 +535,52 @@ class MyHomePageState extends State<MyHomePage>
                               : DismissDirection.horizontal,
                           onDismissed: (direction) {
                             setState(() {
-                              if ((data["friends"] as List)
+                              if ((App.data["friends"] as List)
                                       .where((element) =>
                                           element["id"] == friend["id"])
                                       .length ==
                                   1) {
-                                channel.sink.add(
+                                App.channel.sink.add(
                                   jsonEncode({
                                     "type": "unfriend",
-                                    "id": ModalRoute.of(context)
-                                        .settings
-                                        .arguments,
                                     "friend": friend["id"],
                                   }),
                                 );
-                                data["friends"] =
-                                    (data["friends"] as List<dynamic>)
+                                App.data["friends"] =
+                                    (App.data["friends"] as List<dynamic>)
                                         .where((element) =>
                                             element["id"] != friend["id"])
                                         .toList();
-                              } else if ((data["requests"] as List)
+                              } else if ((App.data["requests"] as List)
                                       .where((element) =>
                                           element["id"] == friend["id"])
                                       .length ==
                                   1) {
-                                data["requests"] =
-                                    (data["requests"] as List<dynamic>)
+                                App.data["requests"] =
+                                    (App.data["requests"] as List<dynamic>)
                                         .where((element) =>
                                             element["id"] != friend["id"])
                                         .toList();
-                                print(data);
-                                channel.sink.add(
+                                print(App.data);
+                                App.channel.sink.add(
                                   jsonEncode({
                                     "type": "reject",
-                                    "id": ModalRoute.of(context)
-                                        .settings
-                                        .arguments,
                                     "friend": friend["id"],
                                   }),
                                 );
-                              } else if ((data["pending"] as List)
+                              } else if ((App.data["pending"] as List)
                                       .where((element) =>
                                           element["id"] == friend["id"])
                                       .length ==
                                   1) {
-                                data["pending"] =
-                                    (data["pending"] as List<dynamic>)
+                                App.data["pending"] =
+                                    (App.data["pending"] as List<dynamic>)
                                         .where((element) =>
                                             element["id"] != friend["id"])
                                         .toList();
-                                channel.sink.add(
+                                App.channel.sink.add(
                                   jsonEncode({
                                     "type": "kill_pending",
-                                    "id": ModalRoute.of(context)
-                                        .settings
-                                        .arguments,
                                     "friend": friend["id"],
                                   }),
                                 );
@@ -527,42 +606,27 @@ class MyHomePageState extends State<MyHomePage>
                                       ],
                                       context: context,
                                     ).then((value) {
-                                      if (value == true) {
-                                        channel.sink.add(
-                                          jsonEncode({
-                                            "type": "unfriend",
-                                            "id": ModalRoute.of(context)
-                                                .settings
-                                                .arguments,
-                                            "friend": friend["id"],
-                                          }),
-                                        );
-                                      } else if (value == false) {
-                                        channel.sink.add(
-                                          jsonEncode({
-                                            "type": "unfriend_block",
-                                            "id": ModalRoute.of(context)
-                                                .settings
-                                                .arguments,
-                                            "friend": friend["id"],
-                                          }),
-                                        );
+                                      if (value==true) {
+                                        App.fs(friend,"unfriend",remove: "friends");
+                                      } else if (value==false) {
+                                        App.fs(friend,"unfriend_block",remove: "friends",place: "blocks");
                                       }
                                     });
                                   },
                             onPressed: () {
                               if (!notFriend) {
-                                channel.sink.add(
+                                App.channel.sink.add(
                                   jsonEncode({
-                                    "type": "give_plus",
-                                    "id": ModalRoute.of(context)
-                                        .settings
-                                        .arguments,
+                                    "type": "plus",
                                     "friend": friend["id"],
-                                    "how_much": bulk,
+                                    "amount": bulk,
                                   }),
                                 );
                                 setState(() {
+                                  if (App.data["gives"] >= bulk) {
+                                    friend["points"] += bulk;
+                                    App.data["gives"] -= bulk;
+                                  }
                                   checkIfBulkValid();
                                 });
                               } else if (!notRequest) {
@@ -576,35 +640,11 @@ class MyHomePageState extends State<MyHomePage>
                                   context: context,
                                 ).then((value) {
                                   if (value == 0) {
-                                    channel.sink.add(
-                                      jsonEncode({
-                                        "type": "accept",
-                                        "id": ModalRoute.of(context)
-                                            .settings
-                                            .arguments,
-                                        "friend": friend["id"],
-                                      }),
-                                    );
+                                    App.fs(friend, "accept", remove: "requests", place: "friends");
                                   } else if (value == 1) {
-                                    channel.sink.add(
-                                      jsonEncode({
-                                        "type": "reject",
-                                        "id": ModalRoute.of(context)
-                                            .settings
-                                            .arguments,
-                                        "friend": friend["id"],
-                                      }),
-                                    );
+                                    App.fs(friend,"reject",remove: "requests");
                                   } else if (value == 2) {
-                                    channel.sink.add(
-                                      jsonEncode({
-                                        "type": "reject_block",
-                                        "id": ModalRoute.of(context)
-                                            .settings
-                                            .arguments,
-                                        "friend": friend["id"],
-                                      }),
-                                    );
+                                    App.fs(friend,"reject_block",remove: "requests",place: "blocks");
                                   }
                                 });
                               } else {
@@ -617,15 +657,7 @@ class MyHomePageState extends State<MyHomePage>
                                   context: context,
                                 ).then((value) {
                                   if (value == null) return;
-                                  channel.sink.add(
-                                    jsonEncode({
-                                      "type": "kill_pending",
-                                      "id": ModalRoute.of(context)
-                                          .settings
-                                          .arguments,
-                                      "friend": friend["id"],
-                                    }),
-                                  );
+                                  App.fs(friend,"kill_pending",remove: "pending");
                                 });
                               }
                             },
@@ -643,25 +675,9 @@ class MyHomePageState extends State<MyHomePage>
                                 context: context,
                               ).then((value) {
                                 if (value == true) {
-                                  channel.sink.add(
-                                    jsonEncode({
-                                      "type": "unfriend",
-                                      "id": ModalRoute.of(context)
-                                          .settings
-                                          .arguments,
-                                      "friend": friend["id"],
-                                    }),
-                                  );
+                                  App.fs(friend,"unfriend",remove: "friends");
                                 } else if (value == false) {
-                                  channel.sink.add(
-                                    jsonEncode({
-                                      "type": "unfriend_block",
-                                      "id": ModalRoute.of(context)
-                                          .settings
-                                          .arguments,
-                                      "friend": friend["id"],
-                                    }),
-                                  );
+                                  App.fs(friend,"unfriend_block",remove: "friends",place: "blocks");
                                 }
                               });
                               return Future(() => false);
@@ -754,7 +770,7 @@ class MyHomePageState extends State<MyHomePage>
                                         child: FittedBox(
                                           fit: BoxFit.contain,
                                           child: Text(
-                                            data["gives"].toString(),
+                                            App.data["gives"].toString(),
                                             style: TextStyle(
                                               fontFamily: "Courier",
                                               fontSize: 30,
@@ -934,7 +950,7 @@ class MyHomePageState extends State<MyHomePage>
                                                   padding: EdgeInsets.zero,
                                                   onPressed: () {
                                                     setState(() {
-                                                      if (data["gives"] >
+                                                      if (App.data["gives"] >
                                                           bulk * 10) {
                                                         bulk *= 10;
                                                       } else {
@@ -991,7 +1007,8 @@ class MyHomePageState extends State<MyHomePage>
                                         child: FittedBox(
                                           fit: BoxFit.contain,
                                           child: Text(
-                                            data["blocks"].length.toString(),
+                                            App.data["blocks"].length
+                                                .toString(),
                                             style: TextStyle(
                                               fontFamily: "Courier",
                                               fontSize: 30,
@@ -1154,7 +1171,7 @@ class MyHomePageState extends State<MyHomePage>
                                               child: FittedBox(
                                                 fit: BoxFit.contain,
                                                 child: Text(
-                                                  data["points"].toString(),
+                                                  App.data["points"].toString(),
                                                   style: TextStyle(
                                                     fontFamily: "Courier",
                                                     fontSize: 30,
@@ -1192,6 +1209,11 @@ class DiscoverFriends extends StatefulWidget {
 }
 
 class _DiscoverFriendsState extends State<DiscoverFriends> {
+
+  final Future<Response<String>> future = Dio()
+      .get("http://192.168.178.26:8080/batch/${App.preferences.getString(App.preferencesKey)}");
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1209,13 +1231,15 @@ class _DiscoverFriendsState extends State<DiscoverFriends> {
       ),
       body: Stack(
         children: [
-          StreamBuilder<Object>(
-              stream: ((ModalRoute.of(context).settings.arguments
-                      as List<dynamic>)[0] as Future<List<dynamic>>)
-                  .asStream(),
-              initialData: [],
+          StreamBuilder<Response<String>>(
+              stream: future.asStream(),
               builder: (context, snapshot) {
-                final List<dynamic> data = snapshot.data;
+                List<dynamic> data;
+                if(snapshot.hasData) {
+                  data = jsonDecode(snapshot.data.data)["data"];
+                } else {
+                  data = List.empty();
+                }
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: ListView.builder(
@@ -1233,16 +1257,15 @@ class _DiscoverFriendsState extends State<DiscoverFriends> {
                         points: friend["points"],
                         isButton: true,
                         onPressed: () {
-                          ((ModalRoute.of(context).settings.arguments
-                                  as List<dynamic>)[1] as MyHomePageState)
-                              .channel
-                              .sink
-                              .add(jsonEncode({
-                                "type": "friend",
-                                "id": Login.preferences
-                                    .getString(Login.preferencesKey),
-                                "friend": friend["id"],
-                              }));
+                          if((App.data["pending"] as List<dynamic>).where((element) => element["id"]==friend["id"]).length==0) {
+                            (App.data["pending"] as List<dynamic>).add(friend);
+                            App.controller.add(App.data);
+                            App.channel.sink.add(jsonEncode({
+                              "type": "request",
+                              "friend": friend["id"],
+                            }));
+                          }
+
                         },
                       );
                     },
@@ -1256,13 +1279,13 @@ class _DiscoverFriendsState extends State<DiscoverFriends> {
               alignment: Alignment.topCenter,
               decoration: BoxDecoration(
                   gradient: LinearGradient(
-                end: Alignment.bottomCenter,
-                begin: Alignment.topCenter,
-                colors: [
-                  NeumorphicTheme.of(context).current.baseColor,
-                  NeumorphicTheme.of(context).current.baseColor.withAlpha(0)
-                ],
-              )),
+                    end: Alignment.bottomCenter,
+                    begin: Alignment.topCenter,
+                    colors: [
+                      NeumorphicTheme.of(context).current.baseColor,
+                      NeumorphicTheme.of(context).current.baseColor.withAlpha(0)
+                    ],
+                  )),
             ),
           ),
         ],
