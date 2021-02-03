@@ -13,19 +13,22 @@ class Settings extends StatefulWidget {
   SettingsState createState() => SettingsState();
 }
 
-class SettingsState extends State<Settings> {
+class SettingsState extends State<Settings> with RouteAware {
   TextEditingController nameController;
   TextEditingController statusController;
   ScrollController scrollController;
 
   int color;
 
+
   @override
-  void dispose() {
-    nameController.dispose();
-    statusController.dispose();
-    scrollController.dispose();
-    super.dispose();
+  void didPopNext() {
+    setState(() {});
+  }
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    App.routeObserver.subscribe(this, ModalRoute.of(context));
   }
 
   @override
@@ -34,6 +37,15 @@ class SettingsState extends State<Settings> {
     nameController = TextEditingController();
     statusController = TextEditingController();
     scrollController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    statusController.dispose();
+    scrollController.dispose();
+    App.routeObserver.unsubscribe(this);
+    super.dispose();
   }
 
   String id;
