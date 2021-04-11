@@ -1,16 +1,14 @@
 # points
 
-A new Flutter project.
+A small Flutter example social media.
 
-## Getting Started
+## Client side:
 
-This project is a starting point for a Flutter application.
+- Uses websockets to communicate with the server in real time
+- Uses a neumorphic theme with the package flutter_neumorphic
 
-A few resources to get you started if this is your first Flutter project:
+## Server side: 
 
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
-
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Uses a node
+- Uses the npm package "ws" for websockets
+- Stores data in a simple .json file
