@@ -1,8 +1,12 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_icons/flutter_icons.dart';
 import 'dart:io';
 
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_icons/flutter_icons.dart';
 import 'package:flutter_neumorphic/flutter_neumorphic.dart';
+
+
 
 const List<String> normalIcons = [
   "add",
@@ -439,3 +443,10 @@ TextStyle labelTextStyle = TextStyle(
 
 const double gap = 17;
 
+final String url = kReleaseMode ? pi_url : mac_url;
+
+
+
+const String mac_url = "192.168.178.26";
+
+const String pi_url = "192.168.178.69";

@@ -1,12 +1,17 @@
+import 'dart:io';
+
+
 import 'package:flutter/material.dart';
-import 'custom_neumorphic_sliders.dart';
 import 'package:flutter_neumorphic/flutter_neumorphic.dart';
-import 'main.dart';
-import 'constants.dart' as Constants;
 import 'package:ionicons/ionicons.dart';
 import 'package:flutter_icons/flutter_icons.dart' as icons;
-import 'dart:convert';
-import 'dart:io';
+
+
+import 'app.dart' as App;
+import 'constants.dart' as Constants;
+import 'neumorphic.dart';
+
+
 
 class Settings extends StatefulWidget {
   @override
@@ -52,48 +57,14 @@ class SettingsState extends State<Settings> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
-    // final Widget Function(int) generator = (index) {
-    //   return Expanded(
-    //     child: Padding(
-    //       padding: const EdgeInsets.all(8.0),
-    //       child: GestureDetector(onTap: () {
-    //         if (color != index)
-    //           setState(() {
-    //             color = index;
-    //             change("color", Constants.colorNames[index]);
-    //           });
-    //       }, child: LayoutBuilder(builder: (context, constraints) {
-    //         return Neumorphic(
-    //           child: SizedBox(
-    //             height: constraints.maxWidth,
-    //             width: constraints.maxWidth,
-    //           ),
-    //           style: NeumorphicStyle(
-    //             color: Constants.colorCodes[Constants.colorNames[index]],
-    //             depth: color == index ? 0 : 20,
-    //             intensity: 0.75,
-    //             boxShape: NeumorphicBoxShape.roundRect(
-    //               BorderRadius.circular(constraints.maxWidth / 3.5),
-    //             ),
-    //             border: color == index
-    //                 ? NeumorphicBorder(width: 2, color: Colors.grey[400])
-    //                 : NeumorphicBorder(width: 0),
-    //           ),
-    //         );
-    //       })),
-    //     ),
-    //   );
-    // };
     return StreamBuilder(
       initialData: App.data,
+      stream: App.stream,
       builder: (context, snapshot) {
-        print("update");
-        if (color == null || Constants.colorNames[color] != App.data["color"]) {
-          print("updateColor");
-          nameController.text = App.data["name"];
-          statusController.text = App.data["status"];
-          color = Constants.colorNames.indexOf(App.data["color"]);
-        }
+        print("yes we got updated");
+        color = Constants.colorNames.indexOf(App.data["color"]);
+        nameController.text = App.data["name"];
+        statusController.text = App.data["status"];
         return Scaffold(
           appBar: CustomNeumorphicAppBar(
             title: FittedBox(
@@ -374,7 +345,7 @@ class SettingsState extends State<Settings> with RouteAware {
                                             setState(() {
                                               color = index;
                                               App.updatePropertyRequest("color",
-                                                  Constants.colorNames[index]);
+                                                  Constants.colorNames[index],update: false);
                                             });
                                           },
                                         ),

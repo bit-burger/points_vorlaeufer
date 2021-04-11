@@ -2,129 +2,28 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:math';
 
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
+
+
 import 'package:flutter_neumorphic/flutter_neumorphic.dart';
 import 'package:ionicons/ionicons.dart';
 import 'package:adaptive_dialog/adaptive_dialog.dart';
 
-import 'package:web_socket_channel/io.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 
-import 'settings.dart';
-import 'rows.dart';
+
 import 'constants.dart' as Constants;
-import 'package:points/custom_neumorphic_sliders.dart';
+import 'app.dart' as App;
+import 'settings.dart';
+import 'friendrow.dart';
+import 'neumorphic.dart';
 
-class App {
-  static void updatePropertyRequest(String property, value) {
-    App.data[property] = value;
-    channel.sink.add(
-        jsonEncode({"type": "change", "property": property, "value": value}));
-    controller.add(App.data);
-  }
 
-  static void customRequest(Map<String, dynamic> map) {
-    channel.sink.add(jsonEncode(map));
-  }
-
-  static const String preferencesKey = "id";
-  static SharedPreferences preferences;
-
-  static final RouteObserver<PageRoute> routeObserver =
-      RouteObserver<PageRoute>();
-
-  static IOWebSocketChannel channel;
-  static StreamController controller;
-
-  static Stream<Map<String, dynamic>> stream;
-  static Map<String, dynamic> data = {
-    "name": "",
-    "logo": "",
-    "status": "new to points",
-    "color": "white",
-    "friends": [],
-    "requests": [],
-    "pending": [],
-    "blocks": [],
-  };
-
-  static void fs(Map<String,dynamic> friend,String command,{String remove,String place}) {
-    App.channel.sink.add(
-      jsonEncode({
-        "type": command,
-        "friend": friend["id"],
-      }),
-    );
-    if(remove!=null)
-    App.data[remove] =
-        (App.data[remove] as List<dynamic>)
-            .where((element) =>
-        element["id"] != friend["id"])
-            .toList();
-    if(place!=null)
-      App.data[place].add(friend);
-    App.controller.add(App.data);
-  }
-
-  static void end() {
-    App.controller.close();
-    App.controller = null;
-
-    App.channel?.sink?.close();
-    App.channel = null;
-  }
-
-  static void begin() {
-    //ACHTUNG: DEFAULT VALUE VON EINEM STREAMBUILDER MUSS AUF App.data gestellt werden
-    if (App.channel != null) {
-      App.channel?.sink?.close();
-      App.channel = null;
-      App.controller.close();
-      App.controller = null;
-    }
-    App.controller = StreamController<Map<String, dynamic>>();
-    try {
-      App.channel = IOWebSocketChannel.connect(
-        'ws://192.168.178.26:3000',
-        headers: {"id": App.preferences.getString(App.preferencesKey)},
-      );
-    } catch (error) {
-      print(error);
-    }
-
-    App.channel.stream.listen((event) {
-      final Map<String, dynamic> data = jsonDecode(event);
-      print("data:\n" + data.toString());
-      if (data["type"] == "initialupdate") {
-        App.data = data;
-      } else if (data["type"] == "selfupdate") {
-        App.data[data["property"]] = data["value"];
-      } else if (data["type"] == "friendupdate") {
-        (App.data["friends"] + App.data["pending"] + App.data["requests"]
-                    as List)
-                .firstWhere((element) => element["id"] == data["friend"])[
-            data["property"]] = data["value"];
-        if(data.containsKey("points")) App.data["gives"] -= data["points"];
-      } else if (data["type"] == "fs") {
-        final friend = data["friend"];
-        if(data.containsKey("remove")) {
-          (App.data[data["remove"]] as List).removeWhere((element) => element["id"]==friend["id"]);
-        }
-        if(data.containsKey("place")) {
-          (App.data[data["place"]] as List).add(friend);
-        }
-      } else if (data["type"] == "initialupdate") {
-        App.data = data;
-      } else {
-        throw ErrorDescription("type nonexistnat");
-      }
-      App.controller.add(App.data);
-    });
-    App.stream = App.controller.stream.asBroadcastStream();
-  }
-}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -136,7 +35,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return NeumorphicApp(
-      title: "POINTS",
+      title: "Points",
       themeMode: ThemeMode.light,
       debugShowCheckedModeBanner: false,
       routes: {
@@ -197,7 +96,7 @@ class _AppState extends State<Login> {
       "blocks": [],
     };
     Dio()
-        .get("http://192.168.178.26:8080/$firstString/$secondString")
+        .get("http://${Constants.url}:8080/$firstString/$secondString")
         .then((value) async {
       print("Value: " + value.toString());
       await App.preferences.setString(
@@ -589,7 +488,7 @@ class MyHomePageState extends State<MyHomePage>
                           },
                           child: FriendRow(
                             iconData: friend["logo"],
-                            title: friend["name"],
+                            name: friend["name"],
                             status: friend["status"],
                             colorString: friend["color"],
                             points: friend["points"],
@@ -1211,7 +1110,7 @@ class DiscoverFriends extends StatefulWidget {
 class _DiscoverFriendsState extends State<DiscoverFriends> {
 
   final Future<Response<String>> future = Dio()
-      .get("http://192.168.178.26:8080/batch/${App.preferences.getString(App.preferencesKey)}");
+      .get("http://${Constants.url}:8080/batch/${App.preferences.getString(App.preferencesKey)}");
 
 
   @override
@@ -1251,7 +1150,7 @@ class _DiscoverFriendsState extends State<DiscoverFriends> {
                       final friend = data[i];
                       return FriendRow(
                         iconData: friend["logo"],
-                        title: friend["name"],
+                        name: friend["name"],
                         status: friend["status"],
                         colorString: friend["color"],
                         points: friend["points"],
