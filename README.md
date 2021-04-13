@@ -1,7 +1,7 @@
 
 # points
 
-A small Flutter example social media.
+A small Flutter example social media, [for more information, on german](https://tonyborchert.xyz/points/)
 
 ### Client side:
 
