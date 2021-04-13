@@ -17,12 +17,15 @@ A small Flutter example social media.
 ### Design:
 
 **Login:**
+
 <img width="342" alt="login" src="https://user-images.githubusercontent.com/65500763/114528970-ca915580-9c49-11eb-82cf-bed59eb762f1.png">
 
 **Homepage:**
+
 <img width="392" alt="homepage" src="https://user-images.githubusercontent.com/65500763/114529041-daa93500-9c49-11eb-8c9a-8f982bdc5a81.png">
 
 **Einstellungen:**
+
 <img width="348" alt="einstellungen" src="https://user-images.githubusercontent.com/65500763/114529105-ea287e00-9c49-11eb-83af-4676e6fd6297.png">
 
 
